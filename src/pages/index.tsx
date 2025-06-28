@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Box, Flex } from '@chakra-ui/react';
+import { Box, Flex, IconButton } from '@chakra-ui/react';
+import { Menu } from 'lucide-react';
 import Sidebar, { Conversation } from '../components/Sidebar';
 import ChatStream from '../components/ChatStream';
 import MessageInput from '../components/MessageInput';
@@ -41,7 +42,7 @@ const initialMessages: Record<string, ChatMessage[]> = {
 export default function Home() {
   const [activeId, setActiveId] = useState('6'); // Start with empty conversation to show WelcomeScreen
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(initialMessages);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Default expanded on desktop
 
   const handleSend = (msg: string) => {
     const newUserMessage: ChatMessage = { 
@@ -111,30 +112,84 @@ export default function Home() {
   };
 
   return (
-    <Flex h="100vh" bg="gray.100">
-      <Sidebar
-        conversations={conversationData}
-        activeId={activeId}
-        onSelect={setActiveId}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      />
+    <Flex h="100vh" w="100vw" bg="gray.100" overflow="hidden" position="relative">
+      <Box 
+        display="block"
+        flexShrink={0}
+      >
+        <Sidebar
+          conversations={conversationData}
+          activeId={activeId}
+          onSelect={setActiveId}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+      </Box>
       <Box 
         flex={1} 
         display="flex" 
         flexDirection="column" 
         bgGradient={backgrounds[activeId]}
         transition="background 0.3s ease"
+        minWidth={0}
+        width="100%"
+        overflow="hidden"
+        position="relative"
+        height="100vh"
       >
+        {        /* Mobile Menu Button */}
+        <IconButton
+          aria-label="Open menu"
+          position="absolute"
+          top={4}
+          left={4}
+          zIndex={1001}
+          size="sm"
+          variant="solid"
+          bg="white"
+          color="gray.700"
+          boxShadow="lg"
+          borderRadius="full"
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          display={{ base: "flex", md: "none" }}
+          _hover={{
+            bg: "gray.50"
+          }}
+        >
+          <Menu size={20} />
+        </IconButton>
+
+        {/* Mobile Overlay */}
+        {!isSidebarCollapsed && (
+          <Box
+            position="fixed"
+            top={0}
+            left={0}
+            w="100vw"
+            h="100vh"
+            bg="blackAlpha.600"
+            zIndex={999}
+            display={{ base: "block", md: "none" }}
+            onClick={() => setIsSidebarCollapsed(true)}
+          />
+        )}
         {hasMessages ? (
           <>
-            <ChatStream messages={currentMessages} />
-            <MessageInput onSend={handleSend} />
+            <Box flex={1} overflow="hidden">
+              <ChatStream messages={currentMessages} />
+            </Box>
+            <Box flexShrink={0}>
+              <MessageInput onSend={handleSend} />
+            </Box>
           </>
         ) : (
           <>
-            <WelcomeScreen onStartChat={handleStartChat} />
-            <MessageInput onSend={handleSend} />
+            <Box flex={1} overflow="hidden">
+              <WelcomeScreen onStartChat={handleStartChat} />
+            </Box>
+            <Box flexShrink={0}>
+              <MessageInput onSend={handleSend} />
+            </Box>
           </>
         )}
       </Box>

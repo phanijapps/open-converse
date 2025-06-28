@@ -33,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <Box 
-      w={isCollapsed ? "80px" : "348px"} 
+      w={isCollapsed ? "64px" : { base: "100vw", md: "320px", lg: "348px", xl: "380px" }}
       h="100vh" 
       bg="white" 
       borderRight="1px solid" 
@@ -41,7 +41,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       display="flex"
       flexDirection="column"
       transition="width 0.3s ease"
-      position="relative"
+      position={{ base: "fixed", md: "relative" }}
+      top={{ base: 0, md: "auto" }}
+      left={{ base: 0, md: "auto" }}
+      zIndex={{ base: 1000, md: "auto" }}
+      boxShadow={{ base: "2xl", md: "none" }}
     >
 
       {/* Header with Logo */}
@@ -118,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {!isCollapsed ? (
         <>
           {/* New Chat Button with Settings */}
-          <Box px={6} pt={4}>
+          <Box px={{ base: 3, sm: 4, md: 6 }} pt={4}>
             <HStack gap={3}>
               <Button
                 flex={1}
@@ -165,7 +169,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </Box>
 
           {/* Search */}
-          <Box px={6} py={4}>
+          <Box px={{ base: 3, sm: 4, md: 6 }} py={4}>
             <Box position="relative">
               <Search 
                 size={18} 
@@ -199,7 +203,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </Box>
 
           {/* Conversations Header */}
-          <Box px={6} py={4}>
+          <Box px={{ base: 3, sm: 4, md: 6 }} py={4}>
             <HStack justify="space-between" align="center">
               <Text 
                 fontSize="12px" 
@@ -225,7 +229,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* Conversations List */}
           <VStack 
             gap={0} 
-            px={6} 
+            px={{ base: 3, sm: 4, md: 6 }} 
             align="stretch" 
             flex={1} 
             overflowY="auto"
@@ -272,7 +276,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </VStack>
 
           {/* Last 7 Days Section */}
-          <Box px={6} py={4}>
+          <Box px={{ base: 3, sm: 4, md: 6 }} py={4}>
             <Text 
               fontSize="14px" 
               fontWeight="500" 
@@ -284,7 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </Box>
 
           {/* Vibe Note Section */}
-          <Box p={6} borderTop="1px solid" borderColor="gray.100">
+          <Box p={{ base: 3, sm: 4, md: 6 }} borderTop="1px solid" borderColor="gray.100">
             <Box
               p={4}
               borderRadius="20px"
@@ -401,24 +405,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               </IconButton>
             ))}
           </VStack>
-
-          {/* Collapsed Settings */}
-          <Box p={4}>
-            <IconButton
-              aria-label="Settings"
-              w="48px"
-              h="48px"
-              borderRadius="24px"
-              bg="#D1E6FF"
-              color="#51A1FF"
-              _hover={{
-                bg: "#C1D6FF",
-              }}
-              transition="all 0.2s ease"
-            >
-              <Settings size={16} strokeWidth={1.5} />
-            </IconButton>
-          </Box>
         </>
       )}
     </Box>
