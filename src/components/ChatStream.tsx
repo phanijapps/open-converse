@@ -128,6 +128,7 @@ const ChatStream: React.FC<ChatStreamProps> = ({ messages }) => {
                     opacity={0} 
                     _hover={{ opacity: 1 }} 
                     transition="opacity 0.2s"
+                    display="none"
                   >
                     <IconButton 
                       aria-label="Edit"

@@ -10,6 +10,9 @@ const conversationData: Conversation[] = [
   { id: '1', name: 'Crypto Lending App' },
   { id: '2', name: 'Operator Grammar Types' },
   { id: '3', name: 'Min States For Binary DFA' },
+  { id: '4', name: 'Lorem POS system' },
+  { id: '5', name: 'Create html game environment for website' },
+  { id: '6', name: 'Welcome Chat' },
 ];
 
 const initialMessages: Record<string, ChatMessage[]> = {
@@ -25,11 +28,20 @@ const initialMessages: Record<string, ChatMessage[]> = {
   '3': [
     { id: '1', sender: 'ai', content: 'Binary DFA (Deterministic Finite Automaton) analysis focuses on minimizing states.', timestamp: Date.now() },
   ],
+  '4': [
+    { id: '1', sender: 'ai', content: 'Let me help you with your POS system requirements.', timestamp: Date.now() },
+  ],
+  '5': [
+    { id: '1', sender: 'user', content: 'Create html game environment for website', timestamp: Date.now() },
+    { id: '2', sender: 'ai', content: 'I\'ll help you create an HTML game environment! What type of game are you planning to build?', timestamp: Date.now() },
+  ],
+  '6': [], // Empty conversation for testing welcome screen
 };
 
 export default function Home() {
-  const [activeId, setActiveId] = useState('1');
+  const [activeId, setActiveId] = useState('6'); // Start with empty conversation to show WelcomeScreen
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(initialMessages);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const handleSend = (msg: string) => {
     const newUserMessage: ChatMessage = { 
@@ -93,6 +105,9 @@ export default function Home() {
     '1': 'linear(to-br, blue.50, purple.50, pink.50)',
     '2': 'linear(to-br, green.50, blue.50, cyan.50)',
     '3': 'linear(to-br, yellow.50, orange.50, red.50)',
+    '4': 'linear(to-br, purple.50, pink.50, blue.50)',
+    '5': 'linear(to-br, teal.50, green.50, blue.50)',
+    '6': 'linear(to-br, gray.50, blue.50)',
   };
 
   return (
@@ -101,6 +116,8 @@ export default function Home() {
         conversations={conversationData}
         activeId={activeId}
         onSelect={setActiveId}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
       <Box 
         flex={1} 
