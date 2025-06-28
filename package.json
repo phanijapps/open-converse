@@ -1,81 +1,36 @@
 {
   "name": "openconverse",
-  "productName": "OpenConverse",
-  "version": "1.0.0",
-  "description": "A desktop chat application built with Electron and TypeScript",
-  "main": "dist/main.js",
+  "version": "0.1.0",
+  "main": "dist-electron/main.js",
+  "private": true,
   "scripts": {
-    "build": "npm run build:main && npm run build:renderer",
-    "build:main": "webpack --config webpack.main.config.js",
-    "build:renderer": "webpack --config webpack.renderer.config.js",
-    "start": "npm run build && electron .",
-    "dev": "npm run build && electron . --dev",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux",
-    "clean": "rm -rf dist/",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:next": "next build",
+    "build:ts": "tsc -p tsconfig-electron.json",
+    "build:electron": "webpack --config webpack.config.js",
+    "dev:next": "next dev",
+    "start": "concurrently \"next dev\" \"tsc-watch -p tsconfig-electron.json --onSuccess 'electron . --no-sandbox'\""
   },
-  "keywords": [
-    "electron",
-    "chat",
-    "desktop",
-    "typescript"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
-  "type": "commonjs",
-  "build": {
-    "appId": "com.openconverse.app",
-    "productName": "OpenConverse",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/",
-      "node_modules/",
-      "package.json"
-    ],
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "category": "public.app-category.productivity"
-    },
-    "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "category": "Office"
-    }
+  "dependencies": {
+    "@chakra-ui/next-js": "^2.4.2",
+    "@chakra-ui/react": "^3.21.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "electron": "^37.1.0",
+    "framer-motion": "^12.19.2",
+    "lucide-react": "^0.525.0",
+    "next": "^15.3.4",
+    "next-themes": "^0.4.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@types/node": "^24.0.4",
-    "copy-webpack-plugin": "^13.0.0",
-    "css-loader": "^7.1.2",
-    "electron": "^37.1.0",
-    "electron-builder": "^26.0.12",
-    "html-webpack-plugin": "^5.6.3",
-    "style-loader": "^4.0.0",
+    "@types/node": "^24.0.7",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "clean-webpack-plugin": "^4.0.0",
+    "concurrently": "^9.2.0",
     "ts-loader": "^9.5.2",
+    "tsc-watch": "^7.1.1",
     "typescript": "^5.8.3",
     "webpack": "^5.99.9",
     "webpack-cli": "^6.0.1"

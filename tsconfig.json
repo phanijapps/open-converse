@@ -1,37 +1,39 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "lib": ["ES2020", "DOM"],
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": true,
-    "esModuleInterop": true,
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
     "skipLibCheck": true,
+    "strict": true,
     "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "removeComments": false,
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@main/*": ["src/main/*"],
-      "@renderer/*": ["src/renderer/*"],
-      "@shared/*": ["src/shared/*"]
-    }
+      "@/*": [
+        "src/*"
+      ],
+      "@shared/*": [
+        "shared/*"
+      ]
+    },
+    "incremental": true,
+    "noEmit": true
   },
   "include": [
-    "src/**/*"
+    "src",
+    "shared"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "release"
+    "src-electron"
   ]
 }

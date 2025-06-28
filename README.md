@@ -1,113 +1,146 @@
 # OpenConverse
 
-A desktop chat application built with Electron, TypeScript, and Webpack. OpenConverse is designed to be a modern, extensible chat client similar to Claude Desktop, with support for multiple AI models and a plugin system.
+A beautiful, modern cross-platform desktop chat application built with Electron, Next.js, TypeScript, and Chakra UI.
 
 ## Features
 
-- 🚀 Built with Electron and TypeScript for cross-platform compatibility
-- 💬 Modern chat interface with session management
-- 🎨 Dark theme with clean, intuitive design
-- 🔧 Extensible architecture for future AI integrations
-- 📱 Native desktop experience on macOS and Linux
-- ⚡ Fast build system with Webpack
+- 🎨 **Beautiful UI**: Modern, responsive design with Chakra UI v3
+- 🚀 **Cross-Platform**: Runs on macOS, Windows, and Linux via Electron
+- 💬 **Conversation Management**: Multiple conversation support with easy switching
+- ✨ **Smooth Animations**: Framer Motion powered animations for delightful interactions
+- 🎯 **TypeScript**: Full type safety throughout the application
+- 🔥 **Hot Reload**: Fast development experience with Next.js and tsc-watch
 
-## Development Setup
+## Tech Stack
 
-### Prerequisites
-
-- Node.js (v16 or later)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd open-chat-app
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Build the application:
-```bash
-npm run build
-```
-
-4. Start the application:
-```bash
-npm start
-```
-
-### Development Scripts
-
-- `npm run build` - Build both main and renderer processes
-- `npm run build:main` - Build only the main process
-- `npm run build:renderer` - Build only the renderer process
-- `npm start` - Build and start the application
-- `npm run dev` - Build and start in development mode
-- `npm run clean` - Clean the dist directory
-
-### Distribution
-
-- `npm run pack` - Package the app (without creating installer)
-- `npm run dist` - Create distributable packages for current platform
-- `npm run dist:mac` - Create macOS distributable (DMG)
-- `npm run dist:linux` - Create Linux distributables (AppImage, DEB)
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI Framework**: Chakra UI v3 with custom theme
+- **Desktop App**: Electron 37
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **Bundling**: Webpack, TypeScript Compiler
 
 ## Project Structure
 
 ```
-src/
-├── main/           # Electron main process
-│   ├── main.ts     # Main application entry point
-│   └── preload.ts  # Preload script for secure IPC
-├── renderer/       # Electron renderer process
-│   ├── components/ # UI components
-│   ├── styles/     # CSS styles
-│   ├── index.html  # Main HTML template
-│   └── index.ts    # Renderer entry point
-└── shared/         # Shared types and utilities
-    ├── types.ts    # TypeScript type definitions
-    └── utils.ts    # Shared utility functions
+├── src/                    # Next.js application code
+│   ├── components/         # React components
+│   ├── pages/             # Next.js pages
+│   ├── styles/            # Global styles
+│   └── components/ui/     # UI provider components
+├── src-electron/          # Electron main process code
+├── shared/                # Shared types and utilities
+├── assets/                # Static assets (icons, images)
+├── public/                # Public assets
+└── dist-electron/         # Compiled Electron code
 ```
 
-## Architecture
+## Getting Started
 
-OpenConverse follows a secure Electron architecture:
+### Prerequisites
 
-- **Main Process**: Handles system interactions, window management, and secure APIs
-- **Renderer Process**: Manages the UI and user interactions
-- **Preload Script**: Provides secure communication bridge between main and renderer
-- **Shared**: Common types and utilities used across processes
+- Node.js 18+ and npm
+- Git
 
-## Cross-Platform Support
+### Installation
 
-The application is configured to build for:
+1. Clone the repository:
+   ```bash
+   git clone <repository-url>
+   cd openconverse
+   ```
 
-- **macOS**: DMG installer with support for both Intel (x64) and Apple Silicon (arm64)
-- **Linux**: AppImage and DEB packages for x64 architecture
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Security
+3. Start the development server:
+   ```bash
+   npm start
+   ```
 
-- Context isolation enabled
-- Node.js integration disabled in renderer
-- Secure IPC communication through preload scripts
-- CSP (Content Security Policy) implemented
+This will start both the Next.js development server and Electron with hot reload enabled.
 
-## Next Steps
+## Available Scripts
 
-This is the foundation for OpenConverse. The next development phases will include:
+- `npm start` - Start the development environment (Next.js + Electron)
+- `npm run dev:next` - Start only the Next.js development server
+- `npm run build:next` - Build the Next.js application
+- `npm run build:ts` - Compile TypeScript for Electron
+- `npm run build:electron` - Bundle Electron application
 
-1. Secure IPC communication setup
-2. React-based chat interface
-3. Local session management with IndexedDB
-4. OpenRouter API integration
-5. Extension system implementation
-6. Cross-platform features and packaging
+## Features in Detail
+
+### Conversation Management
+- Create and switch between multiple conversations
+- Each conversation maintains its own message history
+- Beautiful conversation list with search functionality
+
+### Message Experience
+- Real-time message sending and receiving
+- Animated message bubbles with hover effects
+- User and AI avatars
+- Typing indicators and smooth transitions
+
+### UI/UX
+- Modern gradient backgrounds that change per conversation
+- Responsive design that works on different screen sizes
+- Dark/light mode support via next-themes
+- Smooth animations and micro-interactions
+
+### Keyboard Shortcuts
+- `⌘+Enter` (or `Ctrl+Enter`) to send messages
+- Intuitive navigation and interactions
+
+## Development
+
+The application follows modern development practices:
+
+- **TypeScript**: Strict type checking with separate configs for Next.js and Electron
+- **Code Splitting**: Optimized bundle sizes with Webpack
+- **Security**: Electron security best practices with context isolation
+- **Performance**: Lazy loading and efficient re-renders
+
+## Customization
+
+### Themes
+Modify the Chakra UI theme in `src/components/ui/provider.tsx` to customize colors, fonts, and spacing.
+
+### Adding Features
+- New components should be added to `src/components/`
+- Shared types go in `shared/types.ts`
+- Electron main process code goes in `src-electron/`
+
+## Building for Production
+
+1. Build the Next.js app:
+   ```bash
+   npm run build:next
+   ```
+
+2. Compile Electron TypeScript:
+   ```bash
+   npm run build:ts
+   ```
+
+3. Package the Electron app:
+   ```bash
+   npm run build:electron
+   ```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit your changes: `git commit -m 'Add amazing feature'`
+4. Push to the branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
 
 ## License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+Built with ❤️ using modern web technologies.
