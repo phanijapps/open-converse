@@ -1,21 +1,24 @@
 /// Database module for OpenConverse memory management
 /// 
 /// This module provides a modular database abstraction layer that supports:
-/// - SQLite backend (with future extensibility for PostgreSQL, etc.)
-/// - Three core memory tables: LongTermMemory, ShortTermMemory, VectorDB
+/// - SQLite backend with vector search capabilities
+/// - New three-table design: Persona, Conversation, Message
 /// - Migration system for schema management
 /// - CRUD operations exposed via Tauri commands
 /// 
-/// The design allows for easy extension to other database backends by implementing
-/// the DatabaseProvider trait.
+/// The design uses a MemoryRepo trait for clean abstraction of memory operations.
 
 pub mod providers;
 pub mod models;
 pub mod migrations;
 pub mod commands;
 
+#[cfg(test)]
+pub mod tests;
+
 use std::path::Path;
 use thiserror::Error;
+use models::{Persona, Conversation, Message, CreatePersona, CreateConversation, CreateMessage, DatabaseStats};
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -32,6 +35,32 @@ pub enum DatabaseError {
 }
 
 pub type Result<T> = std::result::Result<T, DatabaseError>;
+
+/// Memory repository trait for database operations
+#[async_trait::async_trait]
+pub trait MemoryRepo {
+    // Persona operations
+    async fn create_persona(&self, persona: CreatePersona) -> Result<Persona>;
+    async fn get_personas(&self) -> Result<Vec<Persona>>;
+    async fn delete_persona(&self, persona_id: i64) -> Result<bool>;
+
+    // Conversation operations
+    async fn create_conversation(&self, conversation: CreateConversation) -> Result<Conversation>;
+    async fn get_conversations(&self, persona_id: Option<i64>) -> Result<Vec<Conversation>>;
+    async fn delete_conversation(&self, conversation_id: i64) -> Result<bool>;
+
+    // Message operations
+    async fn save_message(&self, message: CreateMessage) -> Result<Message>;
+    async fn recent_messages(&self, conversation_id: i64, limit: Option<i64>) -> Result<Vec<Message>>;
+    async fn delete_message(&self, message_id: i64) -> Result<bool>;
+
+    // Vector search operations
+    async fn semantic_search(&self, query_embedding: Vec<f32>, limit: Option<i64>) -> Result<Vec<Message>>;
+
+    // Utility operations
+    async fn get_database_stats(&self) -> Result<DatabaseStats>;
+    async fn clear_all_data(&self) -> Result<()>;
+}
 
 /// Database configuration
 #[derive(Debug, Clone)]
@@ -67,8 +96,7 @@ impl DatabaseManager {
     pub fn default_db_path() -> std::path::PathBuf {
         let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         Path::new(&home_dir)
-            .join(".openconv")
-            .join("settings")
+            .join(".opencov")
             .join("db")
             .join("conv.db")
     }
@@ -78,23 +106,8 @@ impl DatabaseManager {
         self.provider.migrate().await
     }
 
-    /// Clear all long-term memory
-    pub async fn clear_long_term_memory(&self) -> Result<()> {
-        self.provider.clear_long_term_memory().await
-    }
-
-    /// Clear all short-term memory
-    pub async fn clear_short_term_memory(&self) -> Result<()> {
-        self.provider.clear_short_term_memory().await
-    }
-
-    /// Clear all vector database entries
-    pub async fn clear_vector_db(&self) -> Result<()> {
-        self.provider.clear_vector_db().await
-    }
-
-    /// Get reference to the provider for CRUD operations
-    pub fn provider(&self) -> &providers::sqlite::SqliteProvider {
+    /// Get reference to the provider for memory operations
+    pub fn memory_repo(&self) -> &dyn MemoryRepo {
         &self.provider
     }
 }

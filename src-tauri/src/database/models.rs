@@ -1,73 +1,72 @@
-/// Data models for the memory tables
+/// Data models for the new memory architecture
 /// 
-/// These models represent the structure of data stored in each memory table:
-/// - LongTermMemory: Persistent conversation memory
-/// - ShortTermMemory: Temporary conversation context with expiration
-/// - VectorDB: Vector embeddings for semantic search (future Langchain integration)
+/// These models represent the structure of data stored in the new three-table design:
+/// - Persona: User personas with roles and goals
+/// - Conversation: Conversation sessions linked to personas
+/// - Message: Individual messages with embeddings for semantic search
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-/// Long-term memory entry for persistent conversation context
+/// Persona represents a user persona with specific role and goals
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct LongTermMemory {
+pub struct Persona {
     pub id: i64,
-    pub content: String,
-    pub created_at: DateTime<Utc>,
-    pub metadata: Option<String>, // JSON metadata for future extensibility
+    pub name: String,
+    pub role: Option<String>,
+    pub goals: Option<String>,
+    pub created_at: i64, // Unix timestamp
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateLongTermMemory {
-    pub content: String,
-    pub metadata: Option<String>,
+pub struct CreatePersona {
+    pub name: String,
+    pub role: Option<String>,
+    pub goals: Option<String>,
 }
 
-/// Short-term memory entry with expiration for temporary context
+/// Conversation represents a conversation session linked to a persona
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct ShortTermMemory {
+pub struct Conversation {
     pub id: i64,
-    pub content: String,
-    pub expires_at: DateTime<Utc>,
-    pub created_at: DateTime<Utc>,
-    pub metadata: Option<String>,
+    pub persona_id: i64,
+    pub created_at: i64, // Unix timestamp
+    pub status: String,  // 'open', 'closed', etc.
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateShortTermMemory {
-    pub content: String,
-    pub expires_at: DateTime<Utc>,
-    pub metadata: Option<String>,
+pub struct CreateConversation {
+    pub persona_id: i64,
+    pub status: Option<String>, // Defaults to 'open'
 }
 
-/// Vector database entry for semantic search and embeddings
-/// This is designed to be compatible with Langchain Chroma integration
+/// Message represents individual messages with optional embeddings
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct VectorDbEntry {
+pub struct Message {
     pub id: i64,
-    pub document_id: String,        // UUID for document identification
-    pub content: String,            // Original text content
-    pub embedding: Option<Vec<u8>>, // Serialized vector embedding (future use)
-    pub collection_name: String,    // Collection/namespace for organizing vectors
-    pub metadata: Option<String>,   // JSON metadata (tags, source, etc.)
-    pub created_at: DateTime<Utc>,
+    pub conversation_id: i64,
+    pub role: String, // 'user', 'assistant', 'system'
+    pub content: String,
+    pub ts: i64, // Unix timestamp
+    pub embedding: Option<Vec<u8>>, // Serialized vector embedding
+    pub recall_score: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateVectorDbEntry {
-    pub document_id: Option<String>, // Will generate UUID if not provided
+pub struct CreateMessage {
+    pub conversation_id: i64,
+    pub role: String,
     pub content: String,
     pub embedding: Option<Vec<u8>>,
-    pub collection_name: String,
-    pub metadata: Option<String>,
+    pub recall_score: Option<f64>,
 }
 
-/// Database statistics for monitoring
+/// Database statistics for the new architecture
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DatabaseStats {
-    pub long_term_count: i64,
-    pub short_term_count: i64,
-    pub vector_db_count: i64,
+    pub persona_count: i64,
+    pub conversation_count: i64,
+    pub message_count: i64,
     pub database_size_bytes: Option<i64>,
+    pub vector_index_size: Option<i64>,
 }

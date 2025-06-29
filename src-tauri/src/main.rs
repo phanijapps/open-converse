@@ -105,21 +105,22 @@ pub fn run() {
             // Database commands
             database::commands::init_database,
             database::commands::get_database_path,
-            database::commands::clear_long_term_memory,
-            database::commands::clear_short_term_memory,
-            database::commands::clear_vector_db,
             database::commands::get_database_stats,
-            database::commands::create_long_term_memory,
-            database::commands::get_long_term_memories,
-            database::commands::delete_long_term_memory,
-            database::commands::create_short_term_memory,
-            database::commands::get_short_term_memories,
-            database::commands::delete_short_term_memory,
-            database::commands::cleanup_expired_short_term_memory,
-            database::commands::create_vector_db_entry,
-            database::commands::get_vector_db_entries,
-            database::commands::get_vector_db_entry_by_document_id,
-            database::commands::delete_vector_db_entry,
+            database::commands::clear_all_memory,
+            // Persona commands
+            database::commands::create_persona,
+            database::commands::get_personas,
+            database::commands::delete_persona,
+            // Conversation commands
+            database::commands::create_conversation,
+            database::commands::get_conversations,
+            database::commands::delete_conversation,
+            // Message commands
+            database::commands::save_message,
+            database::commands::get_recent_messages,
+            database::commands::delete_message,
+            // Search commands
+            database::commands::semantic_search,
         ])
         .setup(|app| {
             // Initialize database state
