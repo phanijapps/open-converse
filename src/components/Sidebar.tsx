@@ -10,6 +10,7 @@ import {
   IconButton,
 } from '@chakra-ui/react';
 import { Search, Settings, MessageCircle, Plus, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/router';
 
 export interface Conversation {
   id: string;
@@ -31,6 +32,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed = false, 
   onToggleCollapse 
 }) => {
+  const router = useRouter();
+
+  const handleSettingsClick = () => {
+    router.push('/settings');
+  };
   return (
     <Box 
       w={isCollapsed ? "64px" : { base: "100vw", md: "320px", lg: "348px", xl: "380px" }}
@@ -154,6 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 borderRadius="25px"
                 bg="#D1E6FF"
                 color="#51A1FF"
+                onClick={handleSettingsClick}
                 _hover={{
                   bg: "#C1D6FF",
                   transform: 'translateY(-1px)',
@@ -340,6 +347,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 borderRadius="24px"
                 bg="#D1E6FF"
                 color="#51A1FF"
+                onClick={handleSettingsClick}
                 _hover={{
                   bg: "#C1D6FF",
                   transform: 'translateY(-1px)',

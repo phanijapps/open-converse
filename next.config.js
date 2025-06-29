@@ -16,6 +16,7 @@ const nextConfig = {
     return {
       '/': { page: '/' },
       '/test': { page: '/test' },
+      '/settings': { page: '/settings' },
       // Exclude API routes - they won't work in static export
     }
   }

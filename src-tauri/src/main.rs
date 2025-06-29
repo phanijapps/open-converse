@@ -6,6 +6,8 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, WindowEvent,
 };
+use std::fs;
+use std::path::Path;
 
 // Tauri commands for frontend communication
 #[tauri::command]
@@ -38,6 +40,51 @@ fn hide_window(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn read_settings_file(file_path: String) -> Result<String, String> {
+    // Expand the tilde path
+    let expanded_path = if file_path.starts_with("~/") {
+        if let Ok(home_dir) = std::env::var("HOME") {
+            file_path.replace("~/", &format!("{}/", home_dir))
+        } else {
+            return Err("Unable to determine home directory".to_string());
+        }
+    } else {
+        file_path
+    };
+
+    match fs::read_to_string(&expanded_path) {
+        Ok(content) => Ok(content),
+        Err(e) => Err(format!("Failed to read file {}: {}", expanded_path, e)),
+    }
+}
+
+#[tauri::command]
+async fn write_settings_file(file_path: String, content: String) -> Result<(), String> {
+    // Expand the tilde path
+    let expanded_path = if file_path.starts_with("~/") {
+        if let Ok(home_dir) = std::env::var("HOME") {
+            file_path.replace("~/", &format!("{}/", home_dir))
+        } else {
+            return Err("Unable to determine home directory".to_string());
+        }
+    } else {
+        file_path
+    };
+
+    // Create parent directories if they don't exist
+    if let Some(parent) = Path::new(&expanded_path).parent() {
+        if let Err(e) = fs::create_dir_all(parent) {
+            return Err(format!("Failed to create directory {}: {}", parent.display(), e));
+        }
+    }
+
+    match fs::write(&expanded_path, content) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to write file {}: {}", expanded_path, e)),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -46,7 +93,9 @@ pub fn run() {
             greet,
             get_ai_response,
             show_window,
-            hide_window
+            hide_window,
+            read_settings_file,
+            write_settings_file
         ])
         .setup(|app| {
             // Create tray menu items
