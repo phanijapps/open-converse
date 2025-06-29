@@ -8,6 +8,12 @@ use tauri::{
 };
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+mod database;
+
+use database::commands::DatabaseState;
 
 // Tauri commands for frontend communication
 #[tauri::command]
@@ -95,9 +101,31 @@ pub fn run() {
             show_window,
             hide_window,
             read_settings_file,
-            write_settings_file
+            write_settings_file,
+            // Database commands
+            database::commands::init_database,
+            database::commands::get_database_path,
+            database::commands::clear_long_term_memory,
+            database::commands::clear_short_term_memory,
+            database::commands::clear_vector_db,
+            database::commands::get_database_stats,
+            database::commands::create_long_term_memory,
+            database::commands::get_long_term_memories,
+            database::commands::delete_long_term_memory,
+            database::commands::create_short_term_memory,
+            database::commands::get_short_term_memories,
+            database::commands::delete_short_term_memory,
+            database::commands::cleanup_expired_short_term_memory,
+            database::commands::create_vector_db_entry,
+            database::commands::get_vector_db_entries,
+            database::commands::get_vector_db_entry_by_document_id,
+            database::commands::delete_vector_db_entry,
         ])
         .setup(|app| {
+            // Initialize database state
+            let database_state: DatabaseState = Arc::new(Mutex::new(None));
+            app.manage(database_state);
+
             // Create tray menu items
             let show = MenuItem::new(app, "Show", true, None::<&str>)?;
             let hide = MenuItem::new(app, "Hide", true, None::<&str>)?;
