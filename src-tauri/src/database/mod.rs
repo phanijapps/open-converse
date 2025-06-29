@@ -19,6 +19,9 @@ pub mod tests;
 use std::path::Path;
 use thiserror::Error;
 use models::{Session, Conversation, Message, CreateSession, CreateConversation, CreateMessage, DatabaseStats};
+use crate::connectors::openrouter::OpenRouterConnector;
+use crate::connectors::settings::SettingsManager;
+use crate::connectors::Connector;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -96,7 +99,7 @@ impl DatabaseManager {
     pub fn default_db_path() -> std::path::PathBuf {
         let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         Path::new(&home_dir)
-            .join(".opencov")
+            .join(".openconv")
             .join("db")
             .join("conv.db")
     }

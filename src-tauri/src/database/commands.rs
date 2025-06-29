@@ -4,6 +4,7 @@
 /// These commands provide a clean API for interacting with the new three-table design.
 
 use crate::database::{models::*, DatabaseConfig, DatabaseManager, DatabaseProvider};
+use crate::connectors::Connector;
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
@@ -277,4 +278,20 @@ pub async fn semantic_search(
         .semantic_search(query_embedding, limit)
         .await
         .map_err(|e| format!("Failed to perform semantic search: {}", e))
+}
+
+#[tauri::command]
+pub async fn tauri_test_openrouter_settings(settings: std::collections::HashMap<String, String>) -> Result<bool, String> {
+    println!("[Tauri] test_openrouter_settings called with: {:?}", settings);
+    let connector = crate::connectors::OpenRouterConnector;
+    match Connector::test_settings(&connector, &settings).await {
+        Ok(result) => {
+            println!("[Tauri] OpenRouter test result: {}", result);
+            Ok(result)
+        },
+        Err(e) => {
+            println!("[Tauri] OpenRouter test error: {:?}", e);
+            Err(format!("OpenRouter test failed: {:?}", e))
+        }
+    }
 }

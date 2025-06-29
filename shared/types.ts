@@ -8,17 +8,6 @@ export interface ChatMessage {
 }
 
 // Settings types
-export interface LLMProvider {
-  providerId: string;
-  description: string;
-  baseUrl: string;
-  apiKey: string;
-  enabled?: boolean;
-  verified?: boolean;
-  lastVerified?: Date;
-  verificationError?: string;
-}
-
 export interface MemoryConfig {
   provider: 'sqlite' | 'supabase';
   config: {
@@ -30,7 +19,19 @@ export interface MemoryConfig {
   };
 }
 
+// --- Provider-agnostic settings structure ---
+export interface ProviderConfig {
+  id: string;
+  description: string;
+  base_url: string;
+  api_key: string;
+  enabled?: boolean;
+  verified?: boolean;
+  last_verified?: string;
+  verification_error?: string;
+}
+
 export interface SettingsData {
-  llmProviders: LLMProvider[];
-  memoryConfig: MemoryConfig;
+  providers: ProviderConfig[];
+  memory_config: MemoryConfig;
 }

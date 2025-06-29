@@ -26,6 +26,7 @@ import {
   type VerificationStatus 
 } from '@/utils/providers/registry';
 import { verifyProvider } from '@/utils/providers/verifiers';
+import OpenRouterTestButton from './settings/OpenRouterTestButton';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -77,48 +78,63 @@ export default function SettingsPage() {
   // Verify API key when it changes
   useEffect(() => {
     if (apiKey && selectedProviderId) {
-      const provider = getProviderById(selectedProviderId);
-      if (provider?.requiresAuth) {
-        handleVerification();
+      // Only verify if not already verified for this key
+      if (
+        !currentProvider?.verified ||
+        currentProvider.apiKey !== apiKey
+      ) {
+        const provider = getProviderById(selectedProviderId);
+        if (provider?.requiresAuth) {
+          handleVerification();
+        }
       }
     }
   }, [apiKey, selectedProviderId]);
 
+  // --- MIGRATED SETTINGS STRUCTURE ---
+  // Load settings using new providers/memory_config structure
   const loadSettings = async () => {
     setIsLoading(true);
     try {
       const data = await readSettings();
-      
-      // Load the first configured provider if any exist
-      if (data.llmProviders && data.llmProviders.length > 0) {
-        const firstProvider = data.llmProviders[0];
-        const template = getProviderById(firstProvider.providerId);
+      // Use new structure: data.providers (array of provider configs)
+      if (data.providers && Array.isArray(data.providers) && data.providers.length > 0) {
+        // If a provider is already selected, try to restore it
+        let providerToLoad = data.providers[0];
+        if (selectedProviderId) {
+          const found = data.providers.find((p: any) => p.id === selectedProviderId);
+          if (found) providerToLoad = found;
+        }
+        const template = getProviderById(providerToLoad.id);
         if (template) {
           const configured: ConfiguredProvider = {
             ...template,
-            apiKey: firstProvider.apiKey,
-            enabled: firstProvider.enabled || true,
-            verified: firstProvider.verified || false,
-            lastVerified: firstProvider.lastVerified,
-            verificationError: firstProvider.verificationError
+            apiKey: providerToLoad.api_key,
+            enabled: providerToLoad.enabled ?? true,
+            verified: providerToLoad.verified ?? false,
+            lastVerified: providerToLoad.last_verified ? new Date(providerToLoad.last_verified) : undefined,
+            verificationError: providerToLoad.verification_error
           };
           setCurrentProvider(configured);
-          setSelectedProviderId(firstProvider.providerId);
-          setApiKey(firstProvider.apiKey);
-          
-          // Set verification status based on stored data
-          if (firstProvider.verified) {
+          setSelectedProviderId(providerToLoad.id);
+          setApiKey(providerToLoad.api_key || '');
+          if (providerToLoad.verified) {
             setVerificationStatus('verified');
-          } else if (firstProvider.verificationError) {
+          } else if (providerToLoad.verification_error) {
             setVerificationStatus('error');
-            setVerificationError(firstProvider.verificationError);
+            setVerificationError(providerToLoad.verification_error);
           } else {
             setVerificationStatus('idle');
           }
         }
+      } else {
+        setCurrentProvider(null);
+        setSelectedProviderId('');
+        setApiKey('');
+        setVerificationStatus('idle');
+        setVerificationError('');
       }
-      
-      setMemoryConfig(data.memoryConfig || { provider: 'sqlite', config: {} });
+      setMemoryConfig(data.memory_config || { provider: 'sqlite', config: {} });
     } catch (error) {
       setSaveMessage('Error loading settings');
       console.error('Error loading settings:', error);
@@ -127,6 +143,7 @@ export default function SettingsPage() {
     }
   };
 
+  // Provider selection using new structure
   const handleProviderSelection = async (providerId: string) => {
     if (!providerId) {
       setCurrentProvider(null);
@@ -136,34 +153,28 @@ export default function SettingsPage() {
       setVerificationError('');
       return;
     }
-
     const template = getProviderById(providerId);
     if (template) {
-      // Check if we have saved settings for this provider
       try {
         const savedSettings = await readSettings();
-        const existingProvider = savedSettings.llmProviders?.find(p => p.providerId === providerId);
-        
-        if (existingProvider && existingProvider.apiKey) {
-          // Use existing saved provider data
+        const existingProvider = savedSettings.providers?.find((p: any) => p.id === providerId);
+        if (existingProvider && existingProvider.api_key) {
           const configured: ConfiguredProvider = {
             ...template,
-            apiKey: existingProvider.apiKey,
+            apiKey: existingProvider.api_key,
             enabled: existingProvider.enabled ?? true,
             verified: existingProvider.verified ?? false,
-            lastVerified: existingProvider.lastVerified,
-            verificationError: existingProvider.verificationError
+            lastVerified: existingProvider.last_verified ? new Date(existingProvider.last_verified) : undefined,
+            verificationError: existingProvider.verification_error
           };
           setCurrentProvider(configured);
           setSelectedProviderId(providerId);
-          setApiKey(existingProvider.apiKey);
-          
-          // Set verification status based on saved data
+          setApiKey(existingProvider.api_key);
           if (existingProvider.verified) {
             setVerificationStatus('verified');
-          } else if (existingProvider.verificationError) {
+          } else if (existingProvider.verification_error) {
             setVerificationStatus('error');
-            setVerificationError(existingProvider.verificationError);
+            setVerificationError(existingProvider.verification_error);
           } else {
             setVerificationStatus('idle');
           }
@@ -184,7 +195,6 @@ export default function SettingsPage() {
         setHasUnsavedChanges(true);
       } catch (error) {
         console.error('Error loading saved provider data:', error);
-        // Fallback to new provider setup
         const configured: ConfiguredProvider = {
           ...template,
           apiKey: '',
@@ -216,59 +226,69 @@ export default function SettingsPage() {
 
   const handleVerification = async () => {
     if (!selectedProviderId || !apiKey) return;
-    
+
     setVerificationStatus('checking');
     setVerificationError('');
-    
+
     try {
-      const result = await verifyProvider(selectedProviderId, apiKey);
-      
-      if (result.success) {
+      // Call the Tauri backend for OpenRouter validation
+      const { invoke } = await import('@tauri-apps/api/core');
+      console.log('OpenRouter API key being sent to Tauri:', apiKey);
+      const settings = { apiKey };
+      // FIX: Wrap settings in an object with key 'settings' for Tauri invoke
+      const ok = await invoke<boolean>('tauri_test_openrouter_settings', { settings });
+
+      if (ok) {
         setVerificationStatus('verified');
         if (currentProvider) {
           setCurrentProvider({
             ...currentProvider,
             verified: true,
             lastVerified: new Date(),
-            verificationError: undefined
+            verificationError: undefined,
           });
         }
       } else {
         setVerificationStatus('error');
-        setVerificationError(result.error || 'Verification failed');
+        setVerificationError('Verification failed');
         if (currentProvider) {
           setCurrentProvider({
             ...currentProvider,
             verified: false,
-            verificationError: result.error
+            verificationError: 'Verification failed',
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       setVerificationStatus('error');
-      setVerificationError('Verification failed');
+      setVerificationError(error?.toString() || 'Verification failed');
+      if (currentProvider) {
+        setCurrentProvider({
+          ...currentProvider,
+          verified: false,
+          verificationError: error?.toString() || 'Verification failed',
+        });
+      }
       console.error('Verification error:', error);
     }
   };
 
   const handleAutoSave = async () => {
     if (!currentProvider || !selectedProviderId || !apiKey) return;
-
     try {
       const settingsData: SettingsData = {
-        llmProviders: [{
-          providerId: selectedProviderId,
+        providers: [{
+          id: selectedProviderId,
           description: currentProvider.description,
-          baseUrl: currentProvider.baseUrl,
-          apiKey: apiKey,
+          base_url: currentProvider.baseUrl,
+          api_key: apiKey,
           enabled: currentProvider.enabled,
           verified: currentProvider.verified,
-          lastVerified: currentProvider.lastVerified,
-          verificationError: currentProvider.verificationError
+          last_verified: currentProvider.lastVerified ? currentProvider.lastVerified.toISOString() : undefined,
+          verification_error: currentProvider.verificationError
         }],
-        memoryConfig,
+        memory_config: memoryConfig,
       };
-
       await writeSettings(settingsData);
       setHasUnsavedChanges(false);
       setSaveMessage('Settings saved automatically!');
@@ -282,19 +302,18 @@ export default function SettingsPage() {
     setIsSaving(true);
     try {
       const settingsData: SettingsData = {
-        llmProviders: currentProvider && selectedProviderId ? [{
-          providerId: selectedProviderId,
+        providers: currentProvider && selectedProviderId ? [{
+          id: selectedProviderId,
           description: currentProvider.description,
-          baseUrl: currentProvider.baseUrl,
-          apiKey: apiKey,
+          base_url: currentProvider.baseUrl,
+          api_key: apiKey,
           enabled: currentProvider.enabled,
           verified: currentProvider.verified,
-          lastVerified: currentProvider.lastVerified,
-          verificationError: currentProvider.verificationError
+          last_verified: currentProvider.lastVerified ? currentProvider.lastVerified.toISOString() : undefined,
+          verification_error: currentProvider.verificationError
         }] : [],
-        memoryConfig,
+        memory_config: memoryConfig,
       };
-
       await writeSettings(settingsData);
       setHasUnsavedChanges(false);
       setSaveMessage('Settings saved successfully!');
@@ -660,6 +679,7 @@ export default function SettingsPage() {
                             type="password"
                             value={apiKey}
                             onChange={(e) => handleApiKeyChange(e.target.value)}
+                            onBlur={handleVerification}
                             placeholder="Enter your API key"
                             border="2px solid"
                             borderColor={
@@ -1069,6 +1089,12 @@ export default function SettingsPage() {
             </Box>
           </VStack>
         )}
+
+        {/* Test OpenRouter API Key */}
+        <Box mt={6}>
+          <Text fontWeight="bold" mb={2}>Test OpenRouter API Key</Text>
+          <OpenRouterTestButton />
+        </Box>
       </Box>
     </Flex>
   );

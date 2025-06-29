@@ -66,7 +66,44 @@ export const notificationUtils = {
 
 // Check if running in Tauri
 export const isTauri = () => {
-  return typeof window !== 'undefined' && '__TAURI__' in window;
+  try {
+    // Most reliable method: try to access Tauri's invoke function
+    if (typeof window !== 'undefined') {
+      const w = window as any;
+      
+      // Check for Tauri-specific globals
+      const hasInvoke = typeof w.__TAURI_INTERNALS__ !== 'undefined' || 
+                       typeof w.__TAURI__ !== 'undefined' ||
+                       typeof w.tauri !== 'undefined';
+      
+      // Additional check: try to import the invoke function
+      let canImportInvoke = false;
+      try {
+        // This will succeed only in Tauri environment
+        canImportInvoke = typeof invoke !== 'undefined';
+      } catch (e) {
+        canImportInvoke = false;
+      }
+      
+      const isTauriEnv = hasInvoke || canImportInvoke;
+      
+      console.debug('[isTauri] Detection details:', {
+        isTauriEnv,
+        hasInvoke,
+        canImportInvoke,
+        __TAURI_INTERNALS__: typeof w.__TAURI_INTERNALS__,
+        __TAURI__: typeof w.__TAURI__,
+        tauri: typeof w.tauri,
+        userAgent: navigator?.userAgent?.includes('Tauri') || false
+      });
+      
+      return isTauriEnv;
+    }
+  } catch (error) {
+    console.debug('[isTauri] Detection error:', error);
+  }
+  
+  return false;
 };
 
 // Platform detection
