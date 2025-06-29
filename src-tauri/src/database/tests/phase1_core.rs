@@ -1,6 +1,6 @@
 /// Phase 1 Core tests for the new memory architecture
 /// 
-/// Tests the persona → conversation → message flow
+/// Tests the session → conversation → message flow
 
 use crate::database::{
     models::*, providers::sqlite::SqliteProvider, DatabaseConfig, DatabaseError, 
@@ -21,57 +21,57 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_persona_operations() {
+    async fn test_session_operations() {
         let provider = setup_test_db().await.unwrap();
 
-        // Create persona
-        let create_persona = CreatePersona {
+        // Create session
+        let create_session = CreateSession {
             name: "Test User".to_string(),
             role: Some("Developer".to_string()),
             goals: Some("Learn Rust".to_string()),
         };
 
-        let persona = provider.create_persona(create_persona).await.unwrap();
-        assert_eq!(persona.name, "Test User");
-        assert_eq!(persona.role, Some("Developer".to_string()));
+        let session = provider.create_session(create_session).await.unwrap();
+        assert_eq!(session.name, "Test User");
+        assert_eq!(session.role, Some("Developer".to_string()));
 
-        // Get personas
-        let personas = provider.get_personas().await.unwrap();
-        assert_eq!(personas.len(), 1);
-        assert_eq!(personas[0].name, "Test User");
+        // Get sessions
+        let sessions = provider.get_sessions().await.unwrap();
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].name, "Test User");
 
-        // Delete persona
-        let deleted = provider.delete_persona(persona.id).await.unwrap();
+        // Delete session
+        let deleted = provider.delete_session(session.id).await.unwrap();
         assert!(deleted);
 
-        let personas = provider.get_personas().await.unwrap();
-        assert_eq!(personas.len(), 0);
+        let sessions = provider.get_sessions().await.unwrap();
+        assert_eq!(sessions.len(), 0);
     }
 
     #[tokio::test]
     async fn test_conversation_operations() {
         let provider = setup_test_db().await.unwrap();
 
-        // Create persona first
-        let create_persona = CreatePersona {
+        // Create session first
+        let create_session = CreateSession {
             name: "Test User".to_string(),
             role: None,
             goals: None,
         };
-        let persona = provider.create_persona(create_persona).await.unwrap();
+        let session = provider.create_session(create_session).await.unwrap();
 
         // Create conversation
         let create_conversation = CreateConversation {
-            persona_id: persona.id,
+            session_id: session.id,
             status: Some("active".to_string()),
         };
 
         let conversation = provider.create_conversation(create_conversation).await.unwrap();
-        assert_eq!(conversation.persona_id, persona.id);
+        assert_eq!(conversation.session_id, session.id);
         assert_eq!(conversation.status, "active");
 
         // Get conversations
-        let conversations = provider.get_conversations(Some(persona.id)).await.unwrap();
+        let conversations = provider.get_conversations(Some(session.id)).await.unwrap();
         assert_eq!(conversations.len(), 1);
 
         // Delete conversation
@@ -83,16 +83,16 @@ mod tests {
     async fn test_message_operations() {
         let provider = setup_test_db().await.unwrap();
 
-        // Create persona and conversation
-        let create_persona = CreatePersona {
+        // Create session and conversation
+        let create_session = CreateSession {
             name: "Test User".to_string(),
             role: None,
             goals: None,
         };
-        let persona = provider.create_persona(create_persona).await.unwrap();
+        let session = provider.create_session(create_session).await.unwrap();
 
         let create_conversation = CreateConversation {
-            persona_id: persona.id,
+            session_id: session.id,
             status: None,
         };
         let conversation = provider.create_conversation(create_conversation).await.unwrap();
@@ -128,20 +128,20 @@ mod tests {
 
         // Initially empty
         let stats = provider.get_database_stats().await.unwrap();
-        assert_eq!(stats.persona_count, 0);
+        assert_eq!(stats.session_count, 0);
         assert_eq!(stats.conversation_count, 0);
         assert_eq!(stats.message_count, 0);
 
         // Create some data
-        let create_persona = CreatePersona {
+        let create_session = CreateSession {
             name: "Test User".to_string(),
             role: None,
             goals: None,
         };
-        let persona = provider.create_persona(create_persona).await.unwrap();
+        let session = provider.create_session(create_session).await.unwrap();
 
         let create_conversation = CreateConversation {
-            persona_id: persona.id,
+            session_id: session.id,
             status: None,
         };
         let conversation = provider.create_conversation(create_conversation).await.unwrap();
@@ -157,7 +157,7 @@ mod tests {
 
         // Check stats
         let stats = provider.get_database_stats().await.unwrap();
-        assert_eq!(stats.persona_count, 1);
+        assert_eq!(stats.session_count, 1);
         assert_eq!(stats.conversation_count, 1);
         assert_eq!(stats.message_count, 1);
     }
@@ -167,15 +167,15 @@ mod tests {
         let provider = setup_test_db().await.unwrap();
 
         // Create test data
-        let create_persona = CreatePersona {
+        let create_session = CreateSession {
             name: "Test User".to_string(),
             role: None,
             goals: None,
         };
-        let persona = provider.create_persona(create_persona).await.unwrap();
+        let session = provider.create_session(create_session).await.unwrap();
 
         let create_conversation = CreateConversation {
-            persona_id: persona.id,
+            session_id: session.id,
             status: None,
         };
         let conversation = provider.create_conversation(create_conversation).await.unwrap();
@@ -194,7 +194,7 @@ mod tests {
 
         // Verify everything is cleared
         let stats = provider.get_database_stats().await.unwrap();
-        assert_eq!(stats.persona_count, 0);
+        assert_eq!(stats.session_count, 0);
         assert_eq!(stats.conversation_count, 0);
         assert_eq!(stats.message_count, 0);
     }

@@ -1,6 +1,6 @@
 /// Tauri commands for the new memory architecture
 /// 
-/// This module exposes the new persona/conversation/message operations to the frontend.
+/// This module exposes the new session/conversation/message operations to the frontend.
 /// These commands provide a clean API for interacting with the new three-table design.
 
 use crate::database::{models::*, DatabaseConfig, DatabaseManager, DatabaseProvider};
@@ -83,31 +83,31 @@ pub async fn clear_all_memory(state: State<'_, DatabaseState>) -> Result<String,
     Ok("All memory data cleared successfully".to_string())
 }
 
-// === Persona Commands ===
+// === Session Commands ===
 
 #[tauri::command]
-pub async fn create_persona(
+pub async fn create_session(
     name: String,
     role: Option<String>,
     goals: Option<String>,
     state: State<'_, DatabaseState>,
-) -> Result<Persona, String> {
+) -> Result<Session, String> {
     let state_guard = state.lock().await;
     let manager = state_guard
         .as_ref()
         .ok_or("Database not initialized")?;
 
-    let create_persona = CreatePersona { name, role, goals };
+    let create_session = CreateSession { name, role, goals };
 
     manager
         .memory_repo()
-        .create_persona(create_persona)
+        .create_session(create_session)
         .await
-        .map_err(|e| format!("Failed to create persona: {}", e))
+        .map_err(|e| format!("Failed to create session: {}", e))
 }
 
 #[tauri::command]
-pub async fn get_personas(state: State<'_, DatabaseState>) -> Result<Vec<Persona>, String> {
+pub async fn get_sessions(state: State<'_, DatabaseState>) -> Result<Vec<Session>, String> {
     let state_guard = state.lock().await;
     let manager = state_guard
         .as_ref()
@@ -115,14 +115,14 @@ pub async fn get_personas(state: State<'_, DatabaseState>) -> Result<Vec<Persona
 
     manager
         .memory_repo()
-        .get_personas()
+        .get_sessions()
         .await
-        .map_err(|e| format!("Failed to get personas: {}", e))
+        .map_err(|e| format!("Failed to get sessions: {}", e))
 }
 
 #[tauri::command]
-pub async fn delete_persona(
-    persona_id: i64,
+pub async fn delete_session(
+    session_id: i64,
     state: State<'_, DatabaseState>,
 ) -> Result<bool, String> {
     let state_guard = state.lock().await;
@@ -132,16 +132,16 @@ pub async fn delete_persona(
 
     manager
         .memory_repo()
-        .delete_persona(persona_id)
+        .delete_session(session_id)
         .await
-        .map_err(|e| format!("Failed to delete persona: {}", e))
+        .map_err(|e| format!("Failed to delete session: {}", e))
 }
 
 // === Conversation Commands ===
 
 #[tauri::command]
 pub async fn create_conversation(
-    persona_id: i64,
+    session_id: i64,
     status: Option<String>,
     state: State<'_, DatabaseState>,
 ) -> Result<Conversation, String> {
@@ -150,7 +150,7 @@ pub async fn create_conversation(
         .as_ref()
         .ok_or("Database not initialized")?;
 
-    let create_conversation = CreateConversation { persona_id, status };
+    let create_conversation = CreateConversation { session_id, status };
 
     manager
         .memory_repo()
@@ -161,7 +161,7 @@ pub async fn create_conversation(
 
 #[tauri::command]
 pub async fn get_conversations(
-    persona_id: Option<i64>,
+    session_id: Option<i64>,
     state: State<'_, DatabaseState>,
 ) -> Result<Vec<Conversation>, String> {
     let state_guard = state.lock().await;
@@ -171,7 +171,7 @@ pub async fn get_conversations(
 
     manager
         .memory_repo()
-        .get_conversations(persona_id)
+        .get_conversations(session_id)
         .await
         .map_err(|e| format!("Failed to get conversations: {}", e))
 }

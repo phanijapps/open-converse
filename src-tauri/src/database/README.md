@@ -1,6 +1,6 @@
 # OpenConverse Database Module
 
-This module provides a modular database abstraction layer for OpenConverse's memory management system. It's designed to support multiple database backends with a focus on SQLite for the initial implementation.
+This module provides a modular database abstraction layer for OpenConverse's session-based memory management system. It's designed to support multiple database backends with a focus on SQLite for the initial implementation.
 
 ## Architecture
 
@@ -8,10 +8,11 @@ The database module follows a layered architecture:
 
 ```
 database/
-├── mod.rs              # Main module and database manager
+├── mod.rs              # Main module and MemoryRepo trait
 ├── models.rs           # Data models and structures
 ├── migrations.rs       # Schema migration system
 ├── commands.rs         # Tauri commands for frontend integration
+├── tests/              # Comprehensive test suite
 └── providers/          # Database backend implementations
     ├── mod.rs
     └── sqlite.rs       # SQLite implementation
@@ -19,35 +20,39 @@ database/
 
 ## Core Components
 
-### Database Manager (`DatabaseManager`)
+### Memory Repository (`MemoryRepo`)
 
-The main entry point that orchestrates database operations and manages connections.
+The main trait that defines the interface for database operations, implemented by different providers.
 
 ### Data Models
 
-#### LongTermMemory
-- **Purpose**: Persistent conversation memory that survives across sessions
+#### Session
+- **Purpose**: User sessions with roles and goals for organized conversation management
 - **Schema**: 
   - `id`: Primary key
-  - `content`: Text content
-  - `created_at`: Timestamp
-  - `metadata`: Optional JSON metadata
+  - `name`: Session name
+  - `role`: Optional user role
+  - `goals`: Optional session goals
+  - `created_at`: Unix timestamp
 
-#### ShortTermMemory
-- **Purpose**: Temporary conversation context with automatic expiration
+#### Conversation
+- **Purpose**: Individual conversation threads linked to sessions
 - **Schema**:
   - `id`: Primary key
-  - `content`: Text content
-  - `expires_at`: Expiration timestamp
-  - `created_at`: Creation timestamp
-  - `metadata`: Optional JSON metadata
+  - `session_id`: Foreign key to session
+  - `status`: Conversation status
+  - `created_at`: Unix timestamp
 
-#### VectorDB
-- **Purpose**: Vector embeddings for semantic search (prepared for Langchain integration)
+#### Message
+- **Purpose**: Individual messages with optional embeddings for semantic search
 - **Schema**:
   - `id`: Primary key
-  - `document_id`: UUID for document identification
-  - `content`: Original text content
+  - `conversation_id`: Foreign key to conversation
+  - `role`: Message role (user/assistant/system)
+  - `content`: Message content
+  - `ts`: Unix timestamp
+  - `embedding`: Optional vector embedding
+  - `recall_score`: Optional relevance score
   - `embedding`: Serialized vector embedding (for future use)
   - `collection_name`: Namespace for organizing vectors
   - `metadata`: Optional JSON metadata

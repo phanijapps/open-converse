@@ -18,7 +18,7 @@ pub mod tests;
 
 use std::path::Path;
 use thiserror::Error;
-use models::{Persona, Conversation, Message, CreatePersona, CreateConversation, CreateMessage, DatabaseStats};
+use models::{Session, Conversation, Message, CreateSession, CreateConversation, CreateMessage, DatabaseStats};
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -39,14 +39,14 @@ pub type Result<T> = std::result::Result<T, DatabaseError>;
 /// Memory repository trait for database operations
 #[async_trait::async_trait]
 pub trait MemoryRepo {
-    // Persona operations
-    async fn create_persona(&self, persona: CreatePersona) -> Result<Persona>;
-    async fn get_personas(&self) -> Result<Vec<Persona>>;
-    async fn delete_persona(&self, persona_id: i64) -> Result<bool>;
+    // Session operations
+    async fn create_session(&self, session: CreateSession) -> Result<Session>;
+    async fn get_sessions(&self) -> Result<Vec<Session>>;
+    async fn delete_session(&self, session_id: i64) -> Result<bool>;
 
     // Conversation operations
     async fn create_conversation(&self, conversation: CreateConversation) -> Result<Conversation>;
-    async fn get_conversations(&self, persona_id: Option<i64>) -> Result<Vec<Conversation>>;
+    async fn get_conversations(&self, session_id: Option<i64>) -> Result<Vec<Conversation>>;
     async fn delete_conversation(&self, conversation_id: i64) -> Result<bool>;
 
     // Message operations

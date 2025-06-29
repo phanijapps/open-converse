@@ -107,10 +107,10 @@ pub fn run() {
             database::commands::get_database_path,
             database::commands::get_database_stats,
             database::commands::clear_all_memory,
-            // Persona commands
-            database::commands::create_persona,
-            database::commands::get_personas,
-            database::commands::delete_persona,
+            // Session commands
+            database::commands::create_session,
+            database::commands::get_sessions,
+            database::commands::delete_session,
             // Conversation commands
             database::commands::create_conversation,
             database::commands::get_conversations,

@@ -1,8 +1,8 @@
 /// SQLite database provider implementation for the new memory architecture
 /// 
 /// This module implements the SQLite backend for the new three-table design:
-/// - Persona: User personas with role and goals
-/// - Conversation: Conversation sessions linked to personas  
+/// - Session: User sessions with role and goals
+/// - Conversation: Conversation sessions linked to sessions  
 /// - Message: Individual messages with vector embeddings for semantic search
 /// 
 /// Features vector search using sqlite-vss extension with 384-dimensional embeddings.
@@ -41,10 +41,10 @@ impl SqliteProvider {
 
     /// Run database migrations to create the new schema
     pub async fn migrate(&self) -> Result<()> {
-        // Create persona table
+        // Create session table
         sqlx::query(
             r#"
-            CREATE TABLE IF NOT EXISTS persona (
+            CREATE TABLE IF NOT EXISTS session (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 role TEXT,
@@ -61,10 +61,10 @@ impl SqliteProvider {
             r#"
             CREATE TABLE IF NOT EXISTS conversation (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                persona_id INTEGER NOT NULL,
+                session_id INTEGER NOT NULL,
                 created_at INTEGER NOT NULL DEFAULT (unixepoch()),
                 status TEXT NOT NULL DEFAULT 'open',
-                FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
+                FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
             )
             "#,
         )
@@ -90,11 +90,11 @@ impl SqliteProvider {
         .await?;
 
         // Create indexes for performance
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_persona_created_at ON persona(created_at)")
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_session_created_at ON session(created_at)")
             .execute(&self.pool)
             .await?;
 
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversation_persona_id ON conversation(persona_id)")
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversation_session_id ON conversation(session_id)")
             .execute(&self.pool)
             .await?;
 
@@ -120,25 +120,25 @@ impl SqliteProvider {
 
 #[async_trait]
 impl MemoryRepo for SqliteProvider {
-    // === Persona Operations ===
+    // === Session Operations ===
 
-    async fn create_persona(&self, persona: CreatePersona) -> Result<Persona> {
+    async fn create_session(&self, session: CreateSession) -> Result<Session> {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
 
         let result = sqlx::query(
-            "INSERT INTO persona (name, role, goals, created_at) VALUES (?, ?, ?, ?) RETURNING *"
+            "INSERT INTO session (name, role, goals, created_at) VALUES (?, ?, ?, ?) RETURNING *"
         )
-        .bind(&persona.name)
-        .bind(&persona.role)
-        .bind(&persona.goals)
+        .bind(&session.name)
+        .bind(&session.role)
+        .bind(&session.goals)
         .bind(now)
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(Persona {
+        Ok(Session {
             id: result.get("id"),
             name: result.get("name"),
             role: result.get("role"),
@@ -147,14 +147,14 @@ impl MemoryRepo for SqliteProvider {
         })
     }
 
-    async fn get_personas(&self) -> Result<Vec<Persona>> {
-        let rows = sqlx::query("SELECT * FROM persona ORDER BY created_at DESC")
+    async fn get_sessions(&self) -> Result<Vec<Session>> {
+        let rows = sqlx::query("SELECT * FROM session ORDER BY created_at DESC")
             .fetch_all(&self.pool)
             .await?;
         
-        let personas = rows
+        let sessions = rows
             .into_iter()
-            .map(|row| Persona {
+            .map(|row| Session {
                 id: row.get("id"),
                 name: row.get("name"),
                 role: row.get("role"),
@@ -163,12 +163,12 @@ impl MemoryRepo for SqliteProvider {
             })
             .collect();
 
-        Ok(personas)
+        Ok(sessions)
     }
 
-    async fn delete_persona(&self, persona_id: i64) -> Result<bool> {
-        let result = sqlx::query("DELETE FROM persona WHERE id = ?")
-            .bind(persona_id)
+    async fn delete_session(&self, session_id: i64) -> Result<bool> {
+        let result = sqlx::query("DELETE FROM session WHERE id = ?")
+            .bind(session_id)
             .execute(&self.pool)
             .await?;
 
@@ -186,9 +186,9 @@ impl MemoryRepo for SqliteProvider {
         let status = conversation.status.unwrap_or_else(|| "open".to_string());
 
         let result = sqlx::query(
-            "INSERT INTO conversation (persona_id, created_at, status) VALUES (?, ?, ?) RETURNING *"
+            "INSERT INTO conversation (session_id, created_at, status) VALUES (?, ?, ?) RETURNING *"
         )
-        .bind(conversation.persona_id)
+        .bind(conversation.session_id)
         .bind(now)
         .bind(&status)
         .fetch_one(&self.pool)
@@ -196,15 +196,15 @@ impl MemoryRepo for SqliteProvider {
 
         Ok(Conversation {
             id: result.get("id"),
-            persona_id: result.get("persona_id"),
+            session_id: result.get("session_id"),
             created_at: result.get("created_at"),
             status: result.get("status"),
         })
     }
 
-    async fn get_conversations(&self, persona_id: Option<i64>) -> Result<Vec<Conversation>> {
-        let query = match persona_id {
-            Some(pid) => format!("SELECT * FROM conversation WHERE persona_id = {} ORDER BY created_at DESC", pid),
+    async fn get_conversations(&self, session_id: Option<i64>) -> Result<Vec<Conversation>> {
+        let query = match session_id {
+            Some(sid) => format!("SELECT * FROM conversation WHERE session_id = {} ORDER BY created_at DESC", sid),
             None => "SELECT * FROM conversation ORDER BY created_at DESC".to_string(),
         };
 
@@ -214,7 +214,7 @@ impl MemoryRepo for SqliteProvider {
             .into_iter()
             .map(|row| Conversation {
                 id: row.get("id"),
-                persona_id: row.get("persona_id"),
+                session_id: row.get("session_id"),
                 created_at: row.get("created_at"),
                 status: row.get("status"),
             })
@@ -306,7 +306,7 @@ impl MemoryRepo for SqliteProvider {
     // === Utility Operations ===
 
     async fn get_database_stats(&self) -> Result<DatabaseStats> {
-        let persona_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM persona")
+        let session_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM session")
             .fetch_one(&self.pool)
             .await?;
 
@@ -319,7 +319,7 @@ impl MemoryRepo for SqliteProvider {
             .await?;
 
         Ok(DatabaseStats {
-            persona_count: persona_count.0,
+            session_count: session_count.0,
             conversation_count: conversation_count.0,
             message_count: message_count.0,
             database_size_bytes: None,
@@ -331,7 +331,7 @@ impl MemoryRepo for SqliteProvider {
         // Clear in order to respect foreign key constraints
         sqlx::query("DELETE FROM message").execute(&self.pool).await?;
         sqlx::query("DELETE FROM conversation").execute(&self.pool).await?;
-        sqlx::query("DELETE FROM persona").execute(&self.pool).await?;
+        sqlx::query("DELETE FROM session").execute(&self.pool).await?;
         
         Ok(())
     }

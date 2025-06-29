@@ -12,8 +12,8 @@ DROP INDEX IF EXISTS idx_short_term_expires_at;
 DROP INDEX IF EXISTS idx_vector_db_collection;
 DROP INDEX IF EXISTS idx_vector_db_document_id;
 
--- Create new persona table
-CREATE TABLE persona (
+-- Create new session table
+CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     role TEXT,
@@ -21,13 +21,13 @@ CREATE TABLE persona (
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- Create conversation table with foreign key to persona
+-- Create conversation table with foreign key to session
 CREATE TABLE conversation (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    persona_id INTEGER NOT NULL,
+    session_id INTEGER NOT NULL,
     created_at INTEGER NOT NULL DEFAULT (unixepoch()),
     status TEXT NOT NULL DEFAULT 'open',
-    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
+    FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
 );
 
 -- Create message table with foreign key to conversation
@@ -52,8 +52,8 @@ CREATE VIRTUAL TABLE msg_idx USING vss0(
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_persona_created_at ON persona(created_at);
-CREATE INDEX idx_conversation_persona_id ON conversation(persona_id);
+CREATE INDEX idx_session_created_at ON session(created_at);
+CREATE INDEX idx_conversation_session_id ON conversation(session_id);
 CREATE INDEX idx_conversation_created_at ON conversation(created_at);
 CREATE INDEX idx_message_conversation_id ON message(conversation_id);
 CREATE INDEX idx_message_ts ON message(ts);
@@ -67,7 +67,7 @@ CREATE INDEX idx_message_role ON message(role);
 DROP TABLE IF EXISTS msg_idx;
 DROP TABLE IF EXISTS message;
 DROP TABLE IF EXISTS conversation;
-DROP TABLE IF EXISTS persona;
+DROP TABLE IF EXISTS session;
 
 -- Recreate legacy tables
 CREATE TABLE long_term_memory (

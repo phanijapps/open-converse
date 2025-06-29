@@ -1,12 +1,12 @@
-To build an Electron app mimicking Claude Desktop with cross-platform support (macOS/Linux), extensibility, local session management, and OpenRouter integration, follow this structured plan:
+To build a Tauri app mimicking Claude Desktop with cross-platform support (macOS/Linux), extensibility, local session management, and OpenRouter integration, follow this structured plan:
 
 ### 1. **Core Architecture Setup**
-   - **Electron Initialization**:  
+   - **Tauri Initialization**:  
      ```bash
-     npm init electron-app@latest claude-desktop-clone --template=typescript-webpack
+     npm create tauri-app@latest claude-desktop-clone --template next
      ```
-   - **Main-Renderer Process Separation**:  
-     Implement IPC channels for:
+   - **Rust Backend - Frontend Separation**:  
+     Implement Tauri commands for:
      - Session data synchronization
      - Model API requests
      - Extension lifecycle management
@@ -30,11 +30,11 @@ To build an Electron app mimicking Claude Desktop with cross-platform support (m
    C --> E[Persist to IndexedDB]
    D --> E
    ```
-   - **Storage**: IndexedDB with Dexie.js for:
+   - **Storage**: SQLite with Tauri's async database for:
      - Message history
      - Session metadata
      - Model preferences
-   - **Encryption**: Use Electron's `safeStorage` for sensitive data
+   - **Encryption**: Use Tauri's secure storage for sensitive data
 
 ### 4. **OpenRouter Integration**
    - **API Service Layer**:

@@ -1,16 +1,16 @@
 /// Data models for the new memory architecture
 /// 
 /// These models represent the structure of data stored in the new three-table design:
-/// - Persona: User personas with roles and goals
-/// - Conversation: Conversation sessions linked to personas
+/// - Session: User sessions with roles and goals
+/// - Conversation: Conversation sessions linked to sessions
 /// - Message: Individual messages with embeddings for semantic search
 
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-/// Persona represents a user persona with specific role and goals
+/// Session represents a user session with specific role and goals
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Persona {
+pub struct Session {
     pub id: i64,
     pub name: String,
     pub role: Option<String>,
@@ -19,24 +19,24 @@ pub struct Persona {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreatePersona {
+pub struct CreateSession {
     pub name: String,
     pub role: Option<String>,
     pub goals: Option<String>,
 }
 
-/// Conversation represents a conversation session linked to a persona
+/// Conversation represents a conversation session linked to a session
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Conversation {
     pub id: i64,
-    pub persona_id: i64,
+    pub session_id: i64,
     pub created_at: i64, // Unix timestamp
     pub status: String,  // 'open', 'closed', etc.
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateConversation {
-    pub persona_id: i64,
+    pub session_id: i64,
     pub status: Option<String>, // Defaults to 'open'
 }
 
@@ -64,7 +64,7 @@ pub struct CreateMessage {
 /// Database statistics for the new architecture
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DatabaseStats {
-    pub persona_count: i64,
+    pub session_count: i64,
     pub conversation_count: i64,
     pub message_count: i64,
     pub database_size_bytes: Option<i64>,

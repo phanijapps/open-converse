@@ -12,11 +12,13 @@ import {
   Select,
   Spinner,
   Badge,
+  Alert,
 } from '@chakra-ui/react';
-import { ArrowLeft, Save, Settings, Database, Cpu, Check, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, Settings, Database, Cpu, Check, X, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { readSettings, writeSettings } from '@/utils/settings';
 import type { MemoryConfig, SettingsData } from '@shared/types';
+import type { DatabaseStats } from '@shared/database-types';
 import { 
   getAvailableProviders, 
   getProviderById, 
@@ -40,6 +42,13 @@ export default function SettingsPage() {
     provider: 'sqlite',
     config: {}
   });
+  
+  // Memory management state
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null);
+  const [databasePath, setDatabasePath] = useState<string>('');
+  const [isDatabaseInitialized, setIsDatabaseInitialized] = useState(false);
+  const [isMemoryLoading, setIsMemoryLoading] = useState(false);
+  const [memoryOperationMessage, setMemoryOperationMessage] = useState('');
   
   // Active tab
   const [activeTab, setActiveTab] = useState<'llm' | 'memory'>('llm');
@@ -318,6 +327,94 @@ export default function SettingsPage() {
     setHasUnsavedChanges(true);
   };
 
+  // Memory management functions
+  const initializeDatabase = async () => {
+    setIsMemoryLoading(true);
+    try {
+      // For Tauri app, we'll simulate the database initialization
+      // In a real Tauri app, you would use:
+      // const result = await invoke('init_database');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async operation
+      
+      // Get database path
+      // const path = await invoke('get_database_path');
+      const path = '~/.openconv/settings/db/conv.db'; // Simulated path
+      setDatabasePath(path);
+      
+      // Get initial stats
+      await loadDatabaseStats();
+      
+      setIsDatabaseInitialized(true);
+      setMemoryOperationMessage('Database initialized successfully');
+      setTimeout(() => setMemoryOperationMessage(''), 3000);
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      setMemoryOperationMessage('Failed to initialize database');
+      setTimeout(() => setMemoryOperationMessage(''), 3000);
+    } finally {
+      setIsMemoryLoading(false);
+    }
+  };
+
+  const loadDatabaseStats = async () => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      
+      // Initialize database first if not already initialized
+      try {
+        await invoke('init_database', { databasePath: null });
+      } catch (initError) {
+        // Database might already be initialized, continue
+        console.log('Database init result:', initError);
+      }
+      
+      const stats = await invoke<DatabaseStats>('get_database_stats');
+      setDatabaseStats(stats);
+      
+      // Get database path
+      const path = await invoke<string>('get_database_path');
+      setDatabasePath(path);
+      setIsDatabaseInitialized(true);
+    } catch (error) {
+      console.error('Failed to load database stats:', error);
+      setDatabaseStats(null);
+      setIsDatabaseInitialized(false);
+    }
+  };
+
+  const clearMemoryTable = async (table: 'sessions' | 'conversations' | 'messages' | 'all') => {
+    setIsMemoryLoading(true);
+    try {
+      if (table === 'all') {
+        // Clear all data using the new API
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('clear_all_data');
+        setMemoryOperationMessage('All data cleared successfully');
+      } else {
+        // For now, individual table clearing is not implemented
+        setMemoryOperationMessage(`${table} clearing not yet implemented`);
+      }
+      
+      setTimeout(() => setMemoryOperationMessage(''), 3000);
+      
+      // Reload stats
+      await loadDatabaseStats();
+    } catch (error) {
+      console.error(`Failed to clear ${table}:`, error);
+      setMemoryOperationMessage(`Failed to clear ${table}`);
+      setTimeout(() => setMemoryOperationMessage(''), 3000);
+    } finally {
+      setIsMemoryLoading(false);
+    }
+  };
+
+  // Initialize database on component mount
+  useEffect(() => {
+    if (activeTab === 'memory' && memoryConfig.provider === 'sqlite' && !isDatabaseInitialized) {
+      initializeDatabase();
+    }
+  }, [activeTab, memoryConfig.provider, isDatabaseInitialized]);
+
   const getVerificationIcon = () => {
     switch (verificationStatus) {
       case 'checking':
@@ -345,10 +442,12 @@ export default function SettingsPage() {
   };
 
   return (
-    <Box 
-      minH="100vh" 
+    <Flex 
+      direction="column"
+      h="100vh" 
       bg="gray.50" 
       fontFamily="Inter"
+      overflow="hidden"
     >
       {/* Header */}
       <Box 
@@ -357,6 +456,7 @@ export default function SettingsPage() {
         borderColor="gray.200"
         px={6} 
         py={4}
+        flexShrink={0}
       >
         <Flex align="center" justify="space-between">
           <HStack gap={4}>
@@ -366,6 +466,8 @@ export default function SettingsPage() {
               variant="ghost"
               onClick={() => router.push('/')}
               _hover={{ bg: "gray.100" }}
+              px={2}
+              py={2}
             >
               <ArrowLeft size={18} />
             </IconButton>
@@ -416,7 +518,7 @@ export default function SettingsPage() {
       </Box>
 
       {/* Tab Navigation */}
-      <Box p={6}>
+      <Box p={6} flex={1} overflow="auto">
         <HStack gap={4} mb={6}>
           <Button
             variant={activeTab === 'llm' ? 'solid' : 'outline'}
@@ -743,6 +845,8 @@ export default function SettingsPage() {
                         SQLite is a lightweight, file-based database that stores your conversations locally. 
                         No additional configuration required - your data stays private on your device.
                       </Text>
+                      
+                      {/* Database Location */}
                       <Box
                         bg="blue.100"
                         border="1px solid"
@@ -754,8 +858,130 @@ export default function SettingsPage() {
                           Database Location
                         </Text>
                         <Text fontSize="xs" color="blue.700">
-                          ~/openconv/memory.db
+                          {databasePath || '~/.openconv/settings/db/conv.db'}
                         </Text>
+                      </Box>
+
+                      {/* Database Statistics */}
+                      {databaseStats && (
+                        <Box
+                          bg="white"
+                          border="1px solid"
+                          borderColor="blue.300"
+                          borderRadius="sm"
+                          p={3}
+                        >
+                          <Text fontSize="sm" fontWeight="medium" color="blue.800" mb={2}>
+                            Database Statistics
+                          </Text>
+                          <VStack gap={1} align="stretch">
+                            <HStack justify="space-between">
+                              <Text fontSize="xs" color="blue.600">Sessions:</Text>
+                              <Text fontSize="xs" color="blue.800" fontWeight="medium">
+                                {databaseStats.session_count}
+                              </Text>
+                            </HStack>
+                            <HStack justify="space-between">
+                              <Text fontSize="xs" color="blue.600">Conversations:</Text>
+                              <Text fontSize="xs" color="blue.800" fontWeight="medium">
+                                {databaseStats.conversation_count}
+                              </Text>
+                            </HStack>
+                            <HStack justify="space-between">
+                              <Text fontSize="xs" color="blue.600">Messages:</Text>
+                              <Text fontSize="xs" color="blue.800" fontWeight="medium">
+                                {databaseStats.message_count}
+                              </Text>
+                            </HStack>
+                          </VStack>
+                        </Box>
+                      )}
+
+                      {/* Memory Management */}
+                      <Box
+                        bg="white"
+                        border="1px solid"
+                        borderColor="blue.300"
+                        borderRadius="sm"
+                        p={3}
+                      >
+                        <Text fontSize="sm" fontWeight="medium" color="blue.800" mb={3}>
+                          Memory Management
+                        </Text>
+                        <VStack gap={2} align="stretch">
+                          <HStack gap={2}>
+                            <Button
+                              size="sm"
+                              colorScheme="red"
+                              variant="outline"
+                              onClick={() => clearMemoryTable('sessions')}
+                              loading={isMemoryLoading}
+                              disabled={isMemoryLoading}
+                              px={3}
+                              py={2}
+                            >
+                              <Trash2 size={14} style={{ marginRight: '4px' }} />
+                              {isMemoryLoading ? 'Clearing...' : 'Clear Sessions'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              colorScheme="orange"
+                              variant="outline"
+                              onClick={() => clearMemoryTable('conversations')}
+                              loading={isMemoryLoading}
+                              disabled={isMemoryLoading}
+                              px={3}
+                              py={2}
+                            >
+                              <Trash2 size={14} style={{ marginRight: '4px' }} />
+                              {isMemoryLoading ? 'Clearing...' : 'Clear Conversations'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              colorScheme="purple"
+                              variant="outline"
+                              onClick={() => clearMemoryTable('messages')}
+                              loading={isMemoryLoading}
+                              disabled={isMemoryLoading}
+                              px={3}
+                              py={2}
+                            >
+                              <Trash2 size={14} style={{ marginRight: '4px' }} />
+                              {isMemoryLoading ? 'Clearing...' : 'Clear Messages'}
+                            </Button>
+                          </HStack>
+                          <Button
+                            size="sm"
+                            colorScheme="red"
+                            variant="solid"
+                            onClick={() => clearMemoryTable('all')}
+                            loading={isMemoryLoading}
+                            disabled={isMemoryLoading}
+                            width="full"
+                            px={4}
+                            py={2}
+                          >
+                            <Trash2 size={14} style={{ marginRight: '4px' }} />
+                            {isMemoryLoading ? 'Clearing...' : 'Clear All Data'}
+                          </Button>
+                          {memoryOperationMessage && (
+                            <Box
+                              bg="green.100"
+                              border="1px solid"
+                              borderColor="green.300"
+                              borderRadius="sm"
+                              p={2}
+                            >
+                              <HStack>
+                                <Check size={14} color="green" />
+                                <Text fontSize="xs" color="green.800">{memoryOperationMessage}</Text>
+                              </HStack>
+                            </Box>
+                          )}
+                          <Text fontSize="xs" color="gray.500">
+                            Clear specific data types or remove all conversation data
+                          </Text>
+                        </VStack>
                       </Box>
                     </VStack>
                   </Box>
@@ -844,6 +1070,6 @@ export default function SettingsPage() {
           </VStack>
         )}
       </Box>
-    </Box>
+    </Flex>
   );
 }
