@@ -2,27 +2,29 @@
 
 This document provides a complete implementation guide for the new memory management system in OpenConverse Tauri application.
 
-## Phase 1 Architecture Overview
+## Phase 1 Architecture Overview (Updated - December 2024)
 
 ✅ **Completed Components:**
 
-1. **New Memory Architecture** (`src-tauri/src/database/`)
-   - Clean three-table design: Session, Conversation, Message
+1. **Simplified Memory Architecture** (`src-tauri/src/database/`)
+   - Clean two-table design: Session (persona + conversation), Message
    - Modern async Rust backend with SQLx
    - MemoryRepo trait for clean abstraction
    - Vector search capability (ready for embedding integration)
-   - Complete migration from legacy tables
+   - Complete migration from legacy three-table design
+   - Added LLM provider and model tracking
 
 2. **TypeScript Types** (`shared/database-types.ts`)
-   - Updated type definitions for new schema
+   - Updated type definitions for simplified schema
+   - Added llm_provider and model_id fields
+   - Removed conversation-related types
    - Utility functions for date handling and metadata
-   - Example usage patterns
 
-3. **Settings Page Integration** (`src/pages/settings.tsx`)
-   - Memory management UI works with new backend
-   - Database statistics display for new tables
-   - Clear memory operations with user feedback
-   - Real-time status updates
+3. **Advanced Settings Page** (`src/pages/settings/advanced.tsx`)
+   - Database management UI with new two-table design
+   - Real-time session management with reactive UI updates
+   - Enhanced table viewer with provider/model columns
+   - Robust session deletion with proper state management
 
 ## New Database Architecture
 
@@ -30,12 +32,13 @@ This document provides a complete implementation guide for the new memory manage
 
 ```
 database/
-├── mod.rs              # Main module with MemoryRepo trait
-├── models.rs           # Data models (Session, Conversation, Message)
+├── mod.rs              # Main module with MemoryRepo trait (simplified)
+├── models.rs           # Data models (Session, Message)
 ├── providers/
 │   ├── mod.rs
-│   └── sqlite.rs       # SQLite implementation of MemoryRepo
-├── migrations.rs       # Schema migration system
+│   └── sqlite.rs       # SQLite implementation (two-table design)
+├── migrations/
+│   └── 002_phase1_core.sql # Core migration with simplified schema
 ├── commands.rs         # Tauri commands for frontend integration
 └── tests/              # Comprehensive test suite
     ├── mod.rs
@@ -44,47 +47,52 @@ database/
 
 ### Core Tables
 
-#### 1. **session**
+#### 1. **session** (Acts as Persona + Conversation)
 ```sql
 CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     role TEXT,
     goals TEXT,
+    llm_provider TEXT,          -- New: AI provider (e.g., "openrouter")
+    model_id TEXT,              -- New: Model ID (e.g., "anthropic/claude-3-haiku")
+    status TEXT NOT NULL DEFAULT 'open',  -- New: Session state
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 ```
 
-#### 2. **conversation** 
-```sql
-CREATE TABLE conversation (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    persona_id INTEGER NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-    status TEXT NOT NULL DEFAULT 'open',
-    FOREIGN KEY (persona_id) REFERENCES persona(id) ON DELETE CASCADE
-);
-```
-
-#### 3. **message**
+#### 2. **message** (Directly linked to session)
 ```sql
 CREATE TABLE message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    conversation_id INTEGER NOT NULL,
+    session_id INTEGER NOT NULL,  -- Direct reference to session (no conversation)
     role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
     content TEXT NOT NULL,
     ts INTEGER NOT NULL DEFAULT (unixepoch()),
     embedding BLOB,
     recall_score REAL,
-    FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE
+    FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
+);
+```
+### Vector Search Preparation
+
+```sql
+-- Load VSS extension and create vector index for semantic search
+.load vss0
+
+-- Create virtual table for 384-dimensional vector search using cosine similarity
+CREATE VIRTUAL TABLE msg_idx USING vss0(
+    embedding(384)
 );
 ```
 
 ### Key Features
 
-- **Performance-Optimized**: Uses i64 integer IDs for better performance
-- **Referential Integrity**: Proper foreign keys with CASCADE deletes
-- **Vector Search Ready**: Embedding field prepared for semantic search
+- **Simplified Architecture**: Two-table design eliminates unnecessary complexity
+- **LLM Integration Ready**: Built-in provider and model tracking fields
+- **Performance-Optimized**: Uses i64 integer IDs and proper indexing
+- **Referential Integrity**: Foreign keys with CASCADE deletes
+- **Vector Search Ready**: Embedding field prepared for semantic search with VSS
 - **Type Safety**: Full Rust type safety with Serde serialization
 - **Async Operations**: Built on SQLx with async/await support
 - **Clean Abstractions**: MemoryRepo trait allows easy backend swapping
@@ -92,24 +100,19 @@ CREATE TABLE message (
 
 ## API Reference
 
-### MemoryRepo Trait
+### MemoryRepo Trait (Simplified)
 
 ```rust
 #[async_trait]
 pub trait MemoryRepo {
-    // Persona operations
-    async fn create_persona(&self, persona: CreatePersona) -> Result<Persona>;
-    async fn get_personas(&self) -> Result<Vec<Persona>>;
-    async fn delete_persona(&self, persona_id: i64) -> Result<bool>;
+    // Session operations (combines persona + conversation functionality)
+    async fn create_session(&self, session: CreateSession) -> Result<Session>;
+    async fn get_sessions(&self) -> Result<Vec<Session>>;
+    async fn delete_session(&self, session_id: i64) -> Result<bool>;
 
-    // Conversation operations  
-    async fn create_conversation(&self, conversation: CreateConversation) -> Result<Conversation>;
-    async fn get_conversations(&self, persona_id: Option<i64>) -> Result<Vec<Conversation>>;
-    async fn delete_conversation(&self, conversation_id: i64) -> Result<bool>;
-
-    // Message operations
+    // Message operations (directly linked to sessions)
     async fn save_message(&self, message: CreateMessage) -> Result<Message>;
-    async fn recent_messages(&self, conversation_id: i64, limit: Option<i64>) -> Result<Vec<Message>>;
+    async fn recent_messages(&self, session_id: i64, limit: Option<i64>) -> Result<Vec<Message>;
     async fn delete_message(&self, message_id: i64) -> Result<bool>;
 
     // Vector search operations
@@ -118,6 +121,33 @@ pub trait MemoryRepo {
     // Utility operations
     async fn get_database_stats(&self) -> Result<DatabaseStats>;
     async fn clear_all_data(&self) -> Result<()>;
+}
+```
+
+### Key Data Models
+
+```rust
+// Session acts as both persona and conversation container
+pub struct Session {
+    pub id: i64,
+    pub name: String,
+    pub role: Option<String>,
+    pub goals: Option<String>,
+    pub llm_provider: Option<String>,  // New: AI provider tracking
+    pub model_id: Option<String>,      // New: Model identification
+    pub status: String,                // New: Session state management
+    pub created_at: i64,
+}
+
+// Messages directly linked to sessions
+pub struct Message {
+    pub id: i64,
+    pub session_id: i64,              // Direct reference to session
+    pub role: String,
+    pub content: String,
+    pub ts: i64,
+    pub embedding: Option<Vec<u8>>,
+    pub recall_score: Option<f64>,
 }
 ```
 

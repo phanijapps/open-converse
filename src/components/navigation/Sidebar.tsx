@@ -9,7 +9,7 @@ import {
   IconButton,
   Spinner,
 } from '@chakra-ui/react';
-import { Search, MessageCircle, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MessageCircle, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import SettingsDropdown from '../ui/SettingsDropdown';
 import useSessions from '@/hooks/useSessions';
 import type { Session } from '@shared/database-types';
@@ -37,7 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse 
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const { sessions, loading, error, createSession } = useSessions();
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const { sessions, loading, error, createSession, deleteSession } = useSessions();
 
   // Use passed conversations or fall back to sessions, then apply search filter
   const filteredConversations = useMemo(() => {
@@ -69,8 +70,44 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleClearAll = async () => {
-    // TODO: Implement clear all sessions functionality
-    console.log('Clear all sessions - to be implemented');
+    if (sessions.length === 0) return;
+    
+    if (!window.confirm(`Are you sure you want to delete all ${sessions.length} sessions? This action cannot be undone.`)) {
+      return;
+    }
+
+    // This will be handled by the advanced settings page
+    // For now, just show a message
+    alert('To delete all sessions, please use the Advanced Settings page.');
+  };
+
+  const handleDeleteSession = async (sessionId: string, sessionName: string, event: React.MouseEvent) => {
+    console.log('handleDeleteSession called with:', { sessionId, sessionName });
+    event.stopPropagation(); // Prevent triggering onSelect
+    
+    if (!window.confirm(`Are you sure you want to delete "${sessionName}"? This will permanently delete all conversations and messages in this session.`)) {
+      console.log('User cancelled deletion');
+      return;
+    }
+
+    console.log('User confirmed deletion, proceeding...');
+    setDeletingSessionId(sessionId);
+    
+    try {
+      const success = await deleteSession(parseInt(sessionId));
+      console.log('Delete session result:', success);
+      
+      if (success) {
+        // If the deleted session was active, clear the active selection
+        if (activeId === sessionId) {
+          onSelect('');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete session from sidebar:', error);
+    } finally {
+      setDeletingSessionId(null);
+    }
   };
 
   return (
@@ -304,40 +341,73 @@ const Sidebar: React.FC<SidebarProps> = ({
               </Box>
             )}
             
-            {filteredConversations.map(conv => (
-              <Box
-                key={conv.id}
-                py={4}
-                cursor="pointer"
-                onClick={() => onSelect(conv.id)}
-                transition="all 0.2s"
-                borderBottom="1px solid"
-                borderColor="transparent"
-                _hover={{ 
-                  bg: "gray.50",
-                  borderBottomColor: "gray.100"
-                }}
-              >
-                <HStack gap={3} align="center">
-                  <Box color={activeId === conv.id ? "#02489B" : "#000000"}>
-                    <MessageCircle size={16} strokeWidth={1.5} />
-                  </Box>
-                  <Text 
-                    fontSize="16px"
-                    fontWeight="400"
-                    color={activeId === conv.id ? "#02489B" : "#475569"}
-                    fontFamily="Inter"
-                    lineHeight="1.5"
-                    flex={1}
-                    overflow="hidden"
-                    textOverflow="ellipsis"
-                    whiteSpace="nowrap"
-                  >
-                    {conv.name}
-                  </Text>
-                </HStack>
-              </Box>
-            ))}
+            {filteredConversations.map(conv => {
+              const isDeleting = deletingSessionId === conv.id;
+              return (
+                <Box
+                  key={conv.id}
+                  py={4}
+                  cursor="pointer"
+                  onClick={() => onSelect(conv.id)}
+                  transition="all 0.2s"
+                  borderBottom="1px solid"
+                  borderColor="transparent"
+                  position="relative"
+                  opacity={isDeleting ? 0.5 : 1}
+                  _hover={{ 
+                    bg: "gray.50",
+                    borderBottomColor: "gray.100",
+                    '& .delete-button': {
+                      opacity: 1,
+                      visibility: 'visible',
+                    }
+                  }}
+                >
+                  <HStack gap={3} align="center">
+                    <Box color={activeId === conv.id ? "#02489B" : "#000000"}>
+                      <MessageCircle size={16} strokeWidth={1.5} />
+                    </Box>
+                    <Text 
+                      fontSize="16px"
+                      fontWeight="400"
+                      color={activeId === conv.id ? "#02489B" : "#475569"}
+                      fontFamily="Inter"
+                      lineHeight="1.5"
+                      flex={1}
+                      overflow="hidden"
+                      textOverflow="ellipsis"
+                      whiteSpace="nowrap"
+                    >
+                      {conv.name}
+                    </Text>
+                    {/* Only show delete button for sessions from the sessions list */}
+                    {sessions.some(s => s.id.toString() === conv.id) && (
+                      <IconButton
+                        className="delete-button"
+                        aria-label="Delete session"
+                        size="xs"
+                        variant="ghost"
+                        opacity={0}
+                        visibility="hidden"
+                        transition="all 0.2s"
+                        onClick={(e) => handleDeleteSession(conv.id, conv.name, e)}
+                        disabled={isDeleting}
+                        _hover={{
+                          bg: "red.50",
+                          color: "red.600",
+                        }}
+                      >
+                        {isDeleting ? (
+                          <Spinner size="xs" />
+                        ) : (
+                          <Trash2 size={12} />
+                        )}
+                      </IconButton>
+                    )}
+                  </HStack>
+                </Box>
+              );
+            })}
           </VStack>
 
           {/* Last 7 Days Section */}

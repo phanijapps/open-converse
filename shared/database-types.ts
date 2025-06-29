@@ -1,7 +1,7 @@
 /**
  * TypeScript types for OpenConverse database operations
  * 
- * These types correspond to the new session/conversation/message architecture
+ * These types correspond to the new session/message architecture
  * and provide type safety for frontend database interactions.
  */
 
@@ -12,19 +12,15 @@ export interface Session {
   name: string;
   role?: string;
   goals?: string;
+  llm_provider?: string;
+  model_id?: string;
+  status: string; // 'open', 'closed', etc.
   created_at: number; // Unix timestamp
-}
-
-export interface Conversation {
-  id: number;
-  session_id: number;
-  created_at: number; // Unix timestamp
-  status: string;
 }
 
 export interface Message {
   id: number;
-  conversation_id: number;
+  session_id: number;
   role: string; // 'user' | 'assistant' | 'system'
   content: string;
   ts: number; // Unix timestamp
@@ -34,7 +30,6 @@ export interface Message {
 
 export interface DatabaseStats {
   session_count: number;
-  conversation_count: number;
   message_count: number;
   database_size_bytes?: number;
   vector_index_size?: number;
@@ -46,15 +41,13 @@ export interface CreateSession {
   name: string;
   role?: string;
   goals?: string;
-}
-
-export interface CreateConversation {
-  session_id: number;
+  llm_provider?: string;
+  model_id?: string;
   status?: string;
 }
 
 export interface CreateMessage {
-  conversation_id: number;
+  session_id: number;
   role: string;
   content: string;
   embedding?: number[];
@@ -223,22 +216,19 @@ import { invoke } from '@tauri-apps/api/core';
 // Initialize database
 await invoke('init_database');
 
-// Create a session
+// Create a session (now acts as both persona and conversation)
 const session = await invoke('create_session', {
   name: 'Technical Assistant',
   role: 'AI Helper',
-  goals: 'Provide accurate technical guidance'
+  goals: 'Provide accurate technical guidance',
+  llm_provider: 'openrouter',
+  model_id: 'anthropic/claude-3-haiku',
+  status: 'open'
 }) as Session;
 
-// Create a conversation
-const conversation = await invoke('create_conversation', {
-  session_id: session.id,
-  status: 'open'
-}) as Conversation;
-
-// Save a message
+// Save a message directly to the session
 const message = await invoke('save_message', {
-  conversation_id: conversation.id,
+  session_id: session.id,
   role: 'user',
   content: 'How do I implement async functions in Rust?',
   embedding: null,
@@ -248,15 +238,14 @@ const message = await invoke('save_message', {
 // Get database statistics
 const stats = await invoke('get_database_stats') as DatabaseStats;
 console.log(`Total sessions: ${stats.session_count}`);
-console.log(`Total conversations: ${stats.conversation_count}`);
 console.log(`Total messages: ${stats.message_count}`);
 
-// Get recent messages
-const recentMessages = await invoke('recent_messages', {
-  conversation_id: conversation.id,
+// Get recent messages for a session
+const recentMessages = await invoke('get_recent_messages', {
+  session_id: session.id,
   limit: 10
 }) as Message[];
 
 // Clear all data
-await invoke('clear_all_data');
+await invoke('clear_all_memory');
 */

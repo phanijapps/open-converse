@@ -113,10 +113,6 @@ pub fn run() {
             database::commands::create_session,
             database::commands::get_sessions,
             database::commands::delete_session,
-            // Conversation commands
-            database::commands::create_conversation,
-            database::commands::get_conversations,
-            database::commands::delete_conversation,
             // Message commands
             database::commands::save_message,
             database::commands::get_recent_messages,

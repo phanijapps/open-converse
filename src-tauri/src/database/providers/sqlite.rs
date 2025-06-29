@@ -1,8 +1,7 @@
 /// SQLite database provider implementation for the new memory architecture
 /// 
-/// This module implements the SQLite backend for the new three-table design:
-/// - Session: User sessions with role and goals
-/// - Conversation: Conversation sessions linked to sessions  
+/// This module implements the SQLite backend for the new two-table design:
+/// - Session: User sessions that act as both persona and conversation container
 /// - Message: Individual messages with vector embeddings for semantic search
 /// 
 /// Features vector search using sqlite-vss extension with 384-dimensional embeddings.
@@ -41,7 +40,7 @@ impl SqliteProvider {
 
     /// Run database migrations to create the new schema
     pub async fn migrate(&self) -> Result<()> {
-        // Create session table
+        // Create session table with new fields
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS session (
@@ -49,6 +48,9 @@ impl SqliteProvider {
                 name TEXT NOT NULL,
                 role TEXT,
                 goals TEXT,
+                llm_provider TEXT,
+                model_id TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
                 created_at INTEGER NOT NULL DEFAULT (unixepoch())
             )
             "#,
@@ -56,33 +58,18 @@ impl SqliteProvider {
         .execute(&self.pool)
         .await?;
 
-        // Create conversation table
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS conversation (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER NOT NULL,
-                created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-                status TEXT NOT NULL DEFAULT 'open',
-                FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
-            )
-            "#,
-        )
-        .execute(&self.pool)
-        .await?;
-
-        // Create message table
+        // Create message table (now directly references session)
         sqlx::query(
             r#"
             CREATE TABLE IF NOT EXISTS message (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                conversation_id INTEGER NOT NULL,
+                session_id INTEGER NOT NULL,
                 role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
                 content TEXT NOT NULL,
                 ts INTEGER NOT NULL DEFAULT (unixepoch()),
                 embedding BLOB,
                 recall_score REAL,
-                FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE
+                FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
             )
             "#,
         )
@@ -94,15 +81,7 @@ impl SqliteProvider {
             .execute(&self.pool)
             .await?;
 
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversation_session_id ON conversation(session_id)")
-            .execute(&self.pool)
-            .await?;
-
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_conversation_created_at ON conversation(created_at)")
-            .execute(&self.pool)
-            .await?;
-
-        sqlx::query("CREATE INDEX IF NOT EXISTS idx_message_conversation_id ON message(conversation_id)")
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_message_session_id ON message(session_id)")
             .execute(&self.pool)
             .await?;
 
@@ -128,12 +107,17 @@ impl MemoryRepo for SqliteProvider {
             .unwrap()
             .as_secs() as i64;
 
+        let status = session.status.unwrap_or_else(|| "open".to_string());
+
         let result = sqlx::query(
-            "INSERT INTO session (name, role, goals, created_at) VALUES (?, ?, ?, ?) RETURNING *"
+            "INSERT INTO session (name, role, goals, llm_provider, model_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *"
         )
         .bind(&session.name)
         .bind(&session.role)
         .bind(&session.goals)
+        .bind(&session.llm_provider)
+        .bind(&session.model_id)
+        .bind(&status)
         .bind(now)
         .fetch_one(&self.pool)
         .await?;
@@ -143,6 +127,9 @@ impl MemoryRepo for SqliteProvider {
             name: result.get("name"),
             role: result.get("role"),
             goals: result.get("goals"),
+            llm_provider: result.get("llm_provider"),
+            model_id: result.get("model_id"),
+            status: result.get("status"),
             created_at: result.get("created_at"),
         })
     }
@@ -159,6 +146,9 @@ impl MemoryRepo for SqliteProvider {
                 name: row.get("name"),
                 role: row.get("role"),
                 goals: row.get("goals"),
+                llm_provider: row.get("llm_provider"),
+                model_id: row.get("model_id"),
+                status: row.get("status"),
                 created_at: row.get("created_at"),
             })
             .collect();
@@ -175,63 +165,6 @@ impl MemoryRepo for SqliteProvider {
         Ok(result.rows_affected() > 0)
     }
 
-    // === Conversation Operations ===
-
-    async fn create_conversation(&self, conversation: CreateConversation) -> Result<Conversation> {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as i64;
-
-        let status = conversation.status.unwrap_or_else(|| "open".to_string());
-
-        let result = sqlx::query(
-            "INSERT INTO conversation (session_id, created_at, status) VALUES (?, ?, ?) RETURNING *"
-        )
-        .bind(conversation.session_id)
-        .bind(now)
-        .bind(&status)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(Conversation {
-            id: result.get("id"),
-            session_id: result.get("session_id"),
-            created_at: result.get("created_at"),
-            status: result.get("status"),
-        })
-    }
-
-    async fn get_conversations(&self, session_id: Option<i64>) -> Result<Vec<Conversation>> {
-        let query = match session_id {
-            Some(sid) => format!("SELECT * FROM conversation WHERE session_id = {} ORDER BY created_at DESC", sid),
-            None => "SELECT * FROM conversation ORDER BY created_at DESC".to_string(),
-        };
-
-        let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
-        
-        let conversations = rows
-            .into_iter()
-            .map(|row| Conversation {
-                id: row.get("id"),
-                session_id: row.get("session_id"),
-                created_at: row.get("created_at"),
-                status: row.get("status"),
-            })
-            .collect();
-
-        Ok(conversations)
-    }
-
-    async fn delete_conversation(&self, conversation_id: i64) -> Result<bool> {
-        let result = sqlx::query("DELETE FROM conversation WHERE id = ?")
-            .bind(conversation_id)
-            .execute(&self.pool)
-            .await?;
-
-        Ok(result.rows_affected() > 0)
-    }
-
     // === Message Operations ===
 
     async fn save_message(&self, message: CreateMessage) -> Result<Message> {
@@ -241,9 +174,9 @@ impl MemoryRepo for SqliteProvider {
             .as_secs() as i64;
 
         let result = sqlx::query(
-            "INSERT INTO message (conversation_id, role, content, ts, embedding, recall_score) VALUES (?, ?, ?, ?, ?, ?) RETURNING *"
+            "INSERT INTO message (session_id, role, content, ts, embedding, recall_score) VALUES (?, ?, ?, ?, ?, ?) RETURNING *"
         )
-        .bind(message.conversation_id)
+        .bind(message.session_id)
         .bind(&message.role)
         .bind(&message.content)
         .bind(now)
@@ -254,7 +187,7 @@ impl MemoryRepo for SqliteProvider {
 
         Ok(Message {
             id: result.get("id"),
-            conversation_id: result.get("conversation_id"),
+            session_id: result.get("session_id"),
             role: result.get("role"),
             content: result.get("content"),
             ts: result.get("ts"),
@@ -263,10 +196,10 @@ impl MemoryRepo for SqliteProvider {
         })
     }
 
-    async fn recent_messages(&self, conversation_id: i64, limit: Option<i64>) -> Result<Vec<Message>> {
+    async fn recent_messages(&self, session_id: i64, limit: Option<i64>) -> Result<Vec<Message>> {
         let query = match limit {
-            Some(limit) => format!("SELECT * FROM message WHERE conversation_id = {} ORDER BY ts DESC LIMIT {}", conversation_id, limit),
-            None => format!("SELECT * FROM message WHERE conversation_id = {} ORDER BY ts DESC", conversation_id),
+            Some(limit) => format!("SELECT * FROM message WHERE session_id = {} ORDER BY ts DESC LIMIT {}", session_id, limit),
+            None => format!("SELECT * FROM message WHERE session_id = {} ORDER BY ts DESC", session_id),
         };
 
         let rows = sqlx::query(&query).fetch_all(&self.pool).await?;
@@ -275,7 +208,7 @@ impl MemoryRepo for SqliteProvider {
             .into_iter()
             .map(|row| Message {
                 id: row.get("id"),
-                conversation_id: row.get("conversation_id"),
+                session_id: row.get("session_id"),
                 role: row.get("role"),
                 content: row.get("content"),
                 ts: row.get("ts"),
@@ -310,17 +243,12 @@ impl MemoryRepo for SqliteProvider {
             .fetch_one(&self.pool)
             .await?;
 
-        let conversation_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM conversation")
-            .fetch_one(&self.pool)
-            .await?;
-
         let message_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM message")
             .fetch_one(&self.pool)
             .await?;
 
         Ok(DatabaseStats {
             session_count: session_count.0,
-            conversation_count: conversation_count.0,
             message_count: message_count.0,
             database_size_bytes: None,
             vector_index_size: None,
@@ -330,7 +258,6 @@ impl MemoryRepo for SqliteProvider {
     async fn clear_all_data(&self) -> Result<()> {
         // Clear in order to respect foreign key constraints
         sqlx::query("DELETE FROM message").execute(&self.pool).await?;
-        sqlx::query("DELETE FROM conversation").execute(&self.pool).await?;
         sqlx::query("DELETE FROM session").execute(&self.pool).await?;
         
         Ok(())

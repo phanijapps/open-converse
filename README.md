@@ -46,17 +46,35 @@ OpenConverse follows a **modular component architecture** with clear separation 
 
 ### Memory System
 
-OpenConverse uses a sophisticated three-table memory architecture:
+OpenConverse uses a simplified **two-table memory architecture** designed for optimal performance and clarity:
 
-- **Session**: User sessions with roles and goals
-- **Conversation**: Conversation sessions linked to sessions
-- **Message**: Individual messages with optional embeddings for semantic search
+```
+Session (Persona + Conversation)
+├── id: Primary key
+├── name: Session identifier
+├── role: AI assistant role/persona
+├── goals: Session objectives
+├── llm_provider: AI provider (e.g., "openrouter")
+├── model_id: Specific model (e.g., "anthropic/claude-3-haiku")
+├── status: Session state ("open", "closed")
+└── created_at: Unix timestamp
 
-This design provides:
-- ✅ Better data organization with clear relationships
-- ✅ Improved query performance with proper indexing
-- ✅ Vector search ready for AI integration
-- ✅ Clean API with focused operations
+Message
+├── id: Primary key
+├── session_id: Foreign key to session
+├── role: Message author ("user", "assistant", "system")
+├── content: Message text
+├── ts: Unix timestamp
+├── embedding: Vector embedding (BLOB)
+└── recall_score: Semantic relevance score
+```
+
+**Key Design Benefits:**
+- ✅ **Simplified Architecture** - Session acts as both persona and conversation container
+- ✅ **Better Performance** - Fewer joins, more direct relationships
+- ✅ **LLM Integration Ready** - Built-in provider and model tracking
+- ✅ **Vector Search Capable** - SQLite with VSS extension for semantic search
+- ✅ **Clean Data Model** - Clear one-to-many relationship (Session → Messages)
 
 ### Project Structure
 

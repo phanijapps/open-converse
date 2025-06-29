@@ -30,6 +30,7 @@ interface DatabaseTableProps {
   error?: string | null;
   onViewRow?: (row: TableRow) => void;
   onDeleteRow?: (row: TableRow) => void;
+  deletingRowId?: string | null; // ID of row currently being deleted
 }
 
 const DatabaseTable: React.FC<DatabaseTableProps> = ({
@@ -40,6 +41,7 @@ const DatabaseTable: React.FC<DatabaseTableProps> = ({
   error = null,
   onViewRow,
   onDeleteRow,
+  deletingRowId = null,
 }) => {
   const formatCellValue = (value: any, type: string = 'text') => {
     if (value === null || value === undefined) {
@@ -181,58 +183,69 @@ const DatabaseTable: React.FC<DatabaseTableProps> = ({
 
             {/* Data Rows - Scrollable */}
             <Box>
-              {data.map((row, index) => (
-                <Flex
-                  key={row.id || index}
-                  py={3}
-                  px={4}
-                  borderBottom={index < data.length - 1 ? "1px solid" : "none"}
-                  borderColor="gray.100"
-                  _hover={{ bg: "gray.50" }}
-                  align="center"
-                  minH="48px"
-                >
-                  {columns.map((column) => (
-                    <Box
-                      key={column.key}
-                      flex={column.width || "1"}
-                      pr={4}
-                    >
-                      {formatCellValue(row[column.key], column.type)}
-                    </Box>
-                  ))}
-                  {(onViewRow || onDeleteRow) && (
-                    <Box width="80px">
-                      <HStack gap={1} justify="center">
-                        {onViewRow && (
-                          <IconButton
-                            aria-label="View details"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onViewRow(row)}
-                            _hover={{ bg: "blue.50", color: "blue.600" }}
-                            p={2}
-                          >
-                            <Eye size={14} />
-                          </IconButton>
-                        )}
-                        {onDeleteRow && (
-                          <IconButton
-                            aria-label="Delete record"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onDeleteRow(row)}
-                            _hover={{ bg: "red.50", color: "red.600" }}
-                            p={2}
-                          >
-                            <Trash2 size={14} />
-                          </IconButton>
-                        )}
-                      </HStack>
-                    </Box>
-                  )}
-                </Flex>
-              ))}
+              {data.map((row, index) => {
+                const isDeleting = deletingRowId === row.id?.toString();
+                return (
+                  <Flex
+                    key={row.id || index}
+                    py={3}
+                    px={4}
+                    borderBottom={index < data.length - 1 ? "1px solid" : "none"}
+                    borderColor="gray.100"
+                    _hover={{ bg: "gray.50" }}
+                    align="center"
+                    minH="48px"
+                    opacity={isDeleting ? 0.5 : 1}
+                    transition="opacity 0.2s"
+                  >
+                    {columns.map((column) => (
+                      <Box
+                        key={column.key}
+                        flex={column.width || "1"}
+                        pr={4}
+                      >
+                        {formatCellValue(row[column.key], column.type)}
+                      </Box>
+                    ))}
+                    {(onViewRow || onDeleteRow) && (
+                      <Box width="80px">
+                        <HStack gap={1} justify="center">
+                          {onViewRow && (
+                            <IconButton
+                              aria-label="View details"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onViewRow(row)}
+                              disabled={isDeleting}
+                              _hover={{ bg: "blue.50", color: "blue.600" }}
+                              p={2}
+                            >
+                              <Eye size={14} />
+                            </IconButton>
+                          )}
+                          {onDeleteRow && (
+                            <IconButton
+                              aria-label="Delete record"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onDeleteRow(row)}
+                              disabled={isDeleting}
+                              _hover={{ bg: "red.50", color: "red.600" }}
+                              p={2}
+                            >
+                              {isDeleting ? (
+                                <Spinner size="xs" />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
+                            </IconButton>
+                          )}
+                        </HStack>
+                      </Box>
+                    )}
+                  </Flex>
+                );
+              })}
             </Box>
           </Box>
         )}

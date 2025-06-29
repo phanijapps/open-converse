@@ -9,11 +9,12 @@ import {
   IconButton,
   Spinner,
 } from '@chakra-ui/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { invoke } from '@tauri-apps/api/core';
 import DatabaseSidebar, { DatabaseTableInfo } from '@/components/database/DatabaseSidebar';
 import DatabaseTable, { TableColumn, TableRow } from '@/components/database/DatabaseTable';
+import useSessions from '@/hooks/useSessions';
 import type { DatabaseStats } from '@shared/database-types';
 
 // Table column definitions
@@ -23,17 +24,14 @@ const TABLE_COLUMNS: Record<string, TableColumn[]> = {
     { key: 'name', label: 'Name', type: 'text' },
     { key: 'role', label: 'Role', type: 'text' },
     { key: 'goals', label: 'Goals', type: 'text' },
-    { key: 'created_at', label: 'Created', type: 'date' },
-  ],
-  conversation: [
-    { key: 'id', label: 'ID', type: 'number', width: '80px' },
-    { key: 'session_id', label: 'Session ID', type: 'number', width: '100px' },
-    { key: 'status', label: 'Status', type: 'badge', width: '100px' },
+    { key: 'llm_provider', label: 'Provider', type: 'text' },
+    { key: 'model_id', label: 'Model', type: 'text' },
+    { key: 'status', label: 'Status', type: 'badge' },
     { key: 'created_at', label: 'Created', type: 'date' },
   ],
   message: [
     { key: 'id', label: 'ID', type: 'number', width: '80px' },
-    { key: 'conversation_id', label: 'Conv. ID', type: 'number', width: '100px' },
+    { key: 'session_id', label: 'Session ID', type: 'number', width: '100px' },
     { key: 'role', label: 'Role', type: 'badge', width: '100px' },
     { key: 'content', label: 'Content', type: 'text' },
     { key: 'ts', label: 'Timestamp', type: 'date' },
@@ -43,6 +41,7 @@ const TABLE_COLUMNS: Record<string, TableColumn[]> = {
 
 export default function AdvancedPage() {
   const router = useRouter();
+  const { sessions, loading: sessionsLoading, error: sessionsError, deleteSession, refreshSessions } = useSessions();
   
   // State management
   const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null);
@@ -52,6 +51,9 @@ export default function AdvancedPage() {
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [isLoadingTable, setIsLoadingTable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Track which row is being deleted
+  const [showClearConfirm, setShowClearConfirm] = useState(false); // For clear all confirmation
+  const [clearRowToDelete, setClearRowToDelete] = useState<TableRow | null>(null); // For individual row deletion
 
   // Load database stats on mount
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function AdvancedPage() {
     try {
       // Initialize database first if not already initialized
       try {
-        await invoke('init_database', { databasePath: null });
+        await invoke('init_database', { database_path: null });
       } catch (initError) {
         // Database might already be initialized, continue
         console.log('Database init result:', initError);
@@ -81,14 +83,7 @@ export default function AdvancedPage() {
           displayName: 'Sessions',
           count: stats.session_count,
           icon: null, // Icon will be determined by the sidebar component
-          description: 'User sessions with roles and goals'
-        },
-        {
-          name: 'conversation',
-          displayName: 'Conversations',
-          count: stats.conversation_count,
-          icon: null,
-          description: 'Conversation sessions linked to sessions'
+          description: 'User sessions that act as personas and conversation containers'
         },
         {
           name: 'message',
@@ -122,10 +117,17 @@ export default function AdvancedPage() {
       
       switch (tableName) {
         case 'session':
-          data = await invoke<TableRow[]>('get_sessions');
-          break;
-        case 'conversation':
-          data = await invoke<TableRow[]>('get_conversations', { sessionId: null });
+          // Always use sessions from the hook for consistency
+          data = sessions.map(session => ({
+            id: session.id,
+            name: session.name,
+            role: session.role || '',
+            goals: session.goals || '',
+            llm_provider: session.llm_provider || '',
+            model_id: session.model_id || '',
+            status: session.status || 'open',
+            created_at: session.created_at,
+          }));
           break;
         case 'message':
           // For messages, we'll limit to recent ones to avoid loading too much data
@@ -153,14 +155,111 @@ export default function AdvancedPage() {
     }
   }, [activeTable]);
 
+  // Update table data when sessions change (if viewing session table)
+  useEffect(() => {
+    if (activeTable === 'session' && !sessionsLoading) {
+      console.log('Sessions changed, updating session table data. Sessions count:', sessions.length);
+      console.log('Raw sessions data:', sessions);
+      const sessionTableData = sessions.map(session => ({
+        id: session.id,
+        name: session.name,
+        role: session.role || '',
+        goals: session.goals || '',
+        llm_provider: session.llm_provider || '',
+        model_id: session.model_id || '',
+        status: session.status || 'open',
+        created_at: session.created_at,
+      }));
+      console.log('Mapped table data:', sessionTableData);
+      setTableData(sessionTableData);
+    }
+  }, [sessions, activeTable, sessionsLoading]);
+
   const handleTableSelect = (tableName: string) => {
     setActiveTable(tableName);
   };
 
-  const handleRefresh = () => {
-    loadDatabaseStats();
-    if (activeTable) {
-      loadTableData(activeTable);
+  const handleRefresh = async () => {
+    setError(null);
+    await loadDatabaseStats();
+    
+    if (activeTable && activeTable !== 'session') {
+      // For non-session tables, reload the table data
+      await loadTableData(activeTable);
+    } else if (activeTable === 'session') {
+      // For session table, refresh sessions from the hook (table will update via useEffect)
+      await refreshSessions();
+    }
+  };
+
+  const handleClearAllSessions = async () => {
+    console.log('handleClearAllSessions called, sessions:', sessions);
+    
+    if (sessions.length === 0) return;
+    
+    // Show confirmation dialog
+    setShowClearConfirm(true);
+  };
+
+  const confirmClearAllSessions = async () => {
+    console.log('User confirmed deletion, proceeding...');
+    setShowClearConfirm(false);
+    setIsDeleting('all');
+
+    try {
+      // Try using the clear_all_memory command instead of deleting individually
+      console.log('Attempting to clear all memory using Tauri command...');
+      await invoke('clear_all_memory');
+      console.log('clear_all_memory command completed successfully');
+      
+      // Refresh the sessions list to reflect the changes
+      await refreshSessions();
+      
+      // Also refresh the database stats (but table data will update automatically via useEffect)
+      await loadDatabaseStats();
+      
+      console.log('Sessions cleared and refreshed successfully');
+    } catch (error) {
+      console.error('Failed to clear all sessions using clear_all_memory:', error);
+      
+      // Fallback: try deleting sessions one by one
+      console.log('Falling back to individual session deletion...');
+      let deletedCount = 0;
+      let errorCount = 0;
+
+      try {
+        // Delete sessions one by one to ensure proper cleanup
+        for (const session of sessions) {
+          try {
+            console.log('Deleting session:', session.id, session.name);
+            const success = await deleteSession(session.id);
+            if (success) {
+              deletedCount++;
+              console.log('Successfully deleted session:', session.id);
+            } else {
+              errorCount++;
+              console.log('Failed to delete session:', session.id);
+            }
+          } catch (error) {
+            console.error(`Failed to delete session ${session.id}:`, error);
+            errorCount++;
+          }
+        }
+
+        // Refresh database stats after bulk deletion (sessions will update automatically)
+        await loadDatabaseStats();
+        
+        if (errorCount === 0) {
+          console.log(`Successfully deleted all ${deletedCount} sessions`);
+        } else {
+          setError(`Deleted ${deletedCount} sessions, but ${errorCount} failed to delete`);
+        }
+      } catch (fallbackError) {
+        console.error('Failed to delete sessions using fallback method:', fallbackError);
+        setError(`Failed to delete sessions: ${fallbackError}`);
+      }
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -174,28 +273,65 @@ export default function AdvancedPage() {
   };
 
   const handleDeleteRow = async (row: TableRow) => {
-    if (!activeTable || !window.confirm(`Are you sure you want to delete this ${activeTable} record?`)) {
-      return;
-    }
+    console.log('handleDeleteRow called with:', row);
+    
+    if (!activeTable) return;
+
+    // Show confirmation dialog
+    setClearRowToDelete(row);
+  };
+
+  const confirmDeleteRow = async () => {
+    if (!clearRowToDelete || !activeTable) return;
+
+    const row = clearRowToDelete;
+    setClearRowToDelete(null);
+
+    const itemName = activeTable === 'session' ? 'session' : 'message';
+
+    console.log('User confirmed deletion, proceeding with row:', row.id);
+    setIsDeleting(row.id?.toString());
 
     try {
+      let success = false;
+      
       switch (activeTable) {
         case 'session':
-          await invoke('delete_session', { sessionId: row.id });
-          break;
-        case 'conversation':
-          await invoke('delete_conversation', { conversationId: row.id });
+          // Use the sessions hook for better state management
+          console.log('Calling deleteSession from hook...');
+          console.log('Row ID:', row.id, 'type:', typeof row.id);
+          console.log('Row object:', JSON.stringify(row, null, 2));
+          
+          try {
+            success = await deleteSession(row.id);
+            console.log('DeleteSession returned:', success);
+          } catch (deleteError) {
+            console.error('Error calling deleteSession:', deleteError);
+            throw deleteError;
+          }
+          // No need to refresh manually - the sessions useEffect will update table data
           break;
         case 'message':
-          await invoke('delete_message', { messageId: row.id });
+          await invoke('delete_message', { message_id: row.id });
+          success = true;
+          // Refresh only for non-session tables
+          await handleRefresh();
+          if (activeTable) {
+            await loadTableData(activeTable);
+          }
           break;
       }
       
-      // Refresh data after deletion
-      handleRefresh();
+      console.log('Delete operation result:', success);
+      
+      if (success) {
+        console.log(`${itemName} deleted successfully`);
+      }
     } catch (error) {
       console.error(`Failed to delete ${activeTable}:`, error);
-      setError(`Failed to delete ${activeTable}. ${error}`);
+      setError(`Failed to delete ${itemName}. ${error}`);
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -246,15 +382,36 @@ export default function AdvancedPage() {
                 </HStack>
                 
                 <HStack gap={3}>
+                  {activeTable === 'session' && sessions.length > 0 && (
+                    <Button
+                      size="sm"
+                      colorScheme="red"
+                      variant="outline"
+                      onClick={() => {
+                        console.log('Clear All button clicked!');
+                        handleClearAllSessions();
+                      }}
+                      disabled={isDeleting === 'all' || sessionsLoading}
+                      px={4}
+                      py={2}
+                    >
+                      {isDeleting === 'all' ? (
+                        <Spinner size="xs" mr={2} />
+                      ) : (
+                        <Trash2 size={14} style={{ marginRight: '8px' }} />
+                      )}
+                      Clear All ({sessions.length})
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={handleRefresh}
-                    disabled={isLoadingStats || isLoadingTable}
+                    disabled={isLoadingStats || isLoadingTable || sessionsLoading}
                     px={4}
                     py={2}
                   >
-                    {(isLoadingStats || isLoadingTable) && (
+                    {(isLoadingStats || isLoadingTable || sessionsLoading) && (
                       <Spinner size="xs" mr={2} />
                     )}
                     Refresh
@@ -265,27 +422,45 @@ export default function AdvancedPage() {
 
             {/* Content Area */}
             <Box flex={1} p={6} overflow="hidden" h="full">
-              {error ? (
-                <Box 
-                  p={4} 
-                  bg="red.50" 
-                  borderRadius="8px" 
-                  border="1px solid" 
-                  borderColor="red.200"
-                  color="red.800"
-                >
-                  <Text fontWeight="500">Error:</Text>
-                  <Text fontSize="sm" mt={1}>{error}</Text>
-                </Box>
+              {(error || sessionsError) ? (
+                <VStack gap={3} align="stretch">
+                  {error && (
+                    <Box 
+                      p={4} 
+                      bg="red.50" 
+                      borderRadius="8px" 
+                      border="1px solid" 
+                      borderColor="red.200"
+                      color="red.800"
+                    >
+                      <Text fontWeight="500">Database Error:</Text>
+                      <Text fontSize="sm" mt={1}>{error}</Text>
+                    </Box>
+                  )}
+                  {sessionsError && (
+                    <Box 
+                      p={4} 
+                      bg="orange.50" 
+                      borderRadius="8px" 
+                      border="1px solid" 
+                      borderColor="orange.200"
+                      color="orange.800"
+                    >
+                      <Text fontWeight="500">Sessions Error:</Text>
+                      <Text fontSize="sm" mt={1}>{sessionsError}</Text>
+                    </Box>
+                  )}
+                </VStack>
               ) : activeTable ? (
                 <Box h="full">
                   <DatabaseTable
                     tableName={tables.find(t => t.name === activeTable)?.displayName || activeTable}
                     columns={TABLE_COLUMNS[activeTable] || []}
                     data={tableData}
-                    isLoading={isLoadingTable}
+                    isLoading={isLoadingTable || (activeTable === 'session' && sessionsLoading)}
                     onViewRow={handleViewRow}
                     onDeleteRow={handleDeleteRow}
+                    deletingRowId={isDeleting}
                   />
                 </Box>
               ) : (
@@ -293,12 +468,141 @@ export default function AdvancedPage() {
                   <Text color="gray.500" fontSize="lg">
                     Select a table from the sidebar to view its data
                   </Text>
+                  {sessionsLoading && (
+                    <Box mt={4}>
+                      <Spinner size="md" color="blue.500" />
+                      <Text color="gray.500" fontSize="sm" mt={2}>
+                        Loading sessions...
+                      </Text>
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
           </VStack>
         </Box>
       </Flex>
+
+      {/* Clear All Confirmation Dialog */}
+      {showClearConfirm && (
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="blackAlpha.600"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          zIndex={1000}
+        >
+          <Box
+            bg="white"
+            borderRadius="12px"
+            p={6}
+            maxW="md"
+            mx={4}
+            boxShadow="xl"
+          >
+            <VStack gap={4} align="stretch">
+              <Text fontSize="lg" fontWeight="600" color="gray.800">
+                Clear All Sessions
+              </Text>
+              <Text color="gray.600">
+                Are you sure you want to delete ALL {sessions.length} sessions? This will permanently delete all conversations and messages. This action cannot be undone.
+              </Text>
+              <HStack gap={3} justify="end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={isDeleting === 'all'}
+                  px={4}
+                  py={2}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  colorScheme="red"
+                  bg="red.500"
+                  color="white"
+                  _hover={{ bg: "red.600" }}
+                  _active={{ bg: "red.700" }}
+                  onClick={confirmClearAllSessions}
+                  disabled={isDeleting === 'all'}
+                  px={4}
+                  py={2}
+                >
+                  {isDeleting === 'all' ? <Spinner size="xs" mr={2} /> : null}
+                  Delete All
+                </Button>
+              </HStack>
+            </VStack>
+          </Box>
+        </Box>
+      )}
+
+      {/* Individual Row Delete Confirmation Dialog */}
+      {clearRowToDelete && (
+        <Box
+          position="fixed"
+          top={0}
+          left={0}
+          right={0}
+          bottom={0}
+          bg="blackAlpha.600"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          zIndex={1000}
+        >
+          <Box
+            bg="white"
+            borderRadius="12px"
+            p={6}
+            maxW="md"
+            mx={4}
+            boxShadow="xl"
+          >
+            <VStack gap={4} align="stretch">
+              <Text fontSize="lg" fontWeight="600" color="gray.800">
+                Delete {activeTable === 'session' ? 'Session' : 'Message'}
+              </Text>
+              <Text color="gray.600">
+                {activeTable === 'session' 
+                  ? `Are you sure you want to delete the session "${clearRowToDelete.name || clearRowToDelete.id}"? This will also delete all associated messages.`
+                  : `Are you sure you want to delete this ${activeTable}? This action cannot be undone.`
+                }
+              </Text>
+              <HStack gap={3} justify="end">
+                <Button
+                  variant="ghost"
+                  onClick={() => setClearRowToDelete(null)}
+                  disabled={isDeleting === clearRowToDelete.id?.toString()}
+                  px={4}
+                  py={2}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  colorScheme="red"
+                  bg="red.500"
+                  color="white"
+                  _hover={{ bg: "red.600" }}
+                  _active={{ bg: "red.700" }}
+                  onClick={confirmDeleteRow}
+                  disabled={isDeleting === clearRowToDelete.id?.toString()}
+                  px={4}
+                  py={2}
+                >
+                  {isDeleting === clearRowToDelete.id?.toString() ? <Spinner size="xs" mr={2} /> : null}
+                  Delete
+                </Button>
+              </HStack>
+            </VStack>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }
