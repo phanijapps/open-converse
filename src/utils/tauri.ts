@@ -1,24 +1,34 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-// Get the current window instance
-const appWindow = getCurrentWindow();
+// Lazy-load the current window instance to avoid SSR issues
+let appWindow: any = null;
+const getAppWindow = () => {
+  if (typeof window !== 'undefined' && !appWindow) {
+    appWindow = getCurrentWindow();
+  }
+  return appWindow;
+};
 
 // Tauri command wrappers
 export const tauriCommands = {
   async greet(name: string): Promise<string> {
+    if (typeof window === 'undefined') return 'Hello from SSR!';
     return await invoke('greet', { name });
   },
 
   async getAiResponse(message: string): Promise<string> {
+    if (typeof window === 'undefined') return 'Response from SSR';
     return await invoke('get_ai_response', { message });
   },
 
   async showWindow(): Promise<void> {
+    if (typeof window === 'undefined') return;
     return await invoke('show_window');
   },
 
   async hideWindow(): Promise<void> {
+    if (typeof window === 'undefined') return;
     return await invoke('hide_window');
   }
 };
@@ -26,24 +36,31 @@ export const tauriCommands = {
 // Window management utilities
 export const windowUtils = {
   async minimize() {
-    await appWindow.minimize();
+    const window = getAppWindow();
+    if (window) await window.minimize();
   },
 
   async maximize() {
-    await appWindow.maximize();
+    const window = getAppWindow();
+    if (window) await window.maximize();
   },
 
   async close() {
-    await appWindow.close();
+    const window = getAppWindow();
+    if (window) await window.close();
   },
 
   async hide() {
-    await appWindow.hide();
+    const window = getAppWindow();
+    if (window) await window.hide();
   },
 
   async show() {
-    await appWindow.show();
-    await appWindow.setFocus();
+    const window = getAppWindow();
+    if (window) {
+      await window.show();
+      await window.setFocus();
+    }
   }
 };
 
