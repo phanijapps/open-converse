@@ -24,6 +24,26 @@ A beautiful, modern cross-platform desktop chat application built with Tauri, Ne
 
 ## Architecture Overview
 
+### Component Organization
+
+OpenConverse follows a **modular component architecture** with clear separation of concerns:
+
+- **📨 Chat Components** (`src/components/chat/`) - All chat-related functionality
+- **🧭 Navigation Components** (`src/components/navigation/`) - Sidebar and navigation
+- **🎨 Layout Components** (`src/components/layout/`) - Page layouts and UI states  
+- **🔧 Common Components** (`src/components/common/`) - Reusable utility components
+- **⚙️ Settings Components** (`src/components/settings/`) - Modular settings management
+- **🗃️ Database Components** (`src/components/database/`) - Database viewers and tools
+- **🎯 UI Components** (`src/components/ui/`) - Core UI providers and theme
+- **🚧 Development Components** (`src/components/development/`) - Testing and dev tools
+
+**Benefits of this organization:**
+- ✅ **Discoverability** - Easy to find components by purpose
+- ✅ **Maintainability** - Related components grouped together
+- ✅ **Scalability** - Clear structure for adding new features
+- ✅ **Reusability** - Clean barrel exports for importing
+- ✅ **Type Safety** - Consistent TypeScript patterns throughout
+
 ### Memory System
 
 OpenConverse uses a sophisticated three-table memory architecture:
@@ -42,9 +62,45 @@ This design provides:
 
 ```
 ├── src/                    # Next.js application code
-│   ├── components/         # React components
-│   │   ├── ui/            # UI provider components & settings
-│   │   └── database/      # Database management components
+│   ├── components/         # React components (modularly organized)
+│   │   ├── chat/          # Chat functionality components
+│   │   │   ├── ChatStream.tsx      # Main chat display
+│   │   │   ├── MessageInput.tsx    # Message input with send
+│   │   │   ├── TypingIndicator.tsx # AI typing animation
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── navigation/    # Navigation and sidebar components
+│   │   │   ├── Sidebar.tsx        # Main sidebar with conversations
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── layout/        # Page layouts and UI states
+│   │   │   ├── WelcomeScreen.tsx  # Initial onboarding
+│   │   │   ├── ErrorState.tsx     # Error display
+│   │   │   ├── LoadingState.tsx   # Loading indicators
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── common/        # Reusable utility components
+│   │   │   ├── Icon.tsx           # SVG icon wrapper
+│   │   │   ├── SilentToggle.tsx   # UI toggle component
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── settings/      # Settings management (modular)
+│   │   │   ├── tabs/              # Settings tab components
+│   │   │   ├── providers/         # LLM provider configs
+│   │   │   ├── memory/            # Memory provider configs
+│   │   │   ├── hooks/             # Settings state management
+│   │   │   ├── SettingsPage.tsx   # Main settings component
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── database/      # Database management components
+│   │   │   ├── DatabaseSidebar.tsx # Database navigation
+│   │   │   ├── DatabaseTable.tsx   # Table viewer
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── ui/            # UI provider components & shared UI
+│   │   │   ├── provider.tsx       # Chakra UI provider
+│   │   │   ├── color-mode.tsx     # Theme provider
+│   │   │   ├── SettingsDropdown.tsx # Settings menu
+│   │   │   └── index.ts           # Barrel exports
+│   │   ├── development/   # Development and testing components
+│   │   │   ├── ProviderTestComponent.tsx # Provider testing
+│   │   │   ├── TauriExample.tsx          # Tauri integration examples
+│   │   │   └── index.ts                  # Barrel exports
+│   │   └── index.ts       # Main component barrel export
 │   ├── pages/             # Next.js pages and API routes
 │   │   ├── api/           # API routes
 │   │   └── settings/      # Settings pages
@@ -156,9 +212,22 @@ The application follows modern development practices:
 ### Themes
 Modify the Chakra UI theme in `src/components/ui/provider.tsx` to customize colors, fonts, and spacing.
 
+### Adding Components
+Follow the modular organization when adding new components:
+
+- **Chat features** → `src/components/chat/`
+- **Navigation elements** → `src/components/navigation/`
+- **Page layouts** → `src/components/layout/`
+- **Utility components** → `src/components/common/`
+- **Settings panels** → `src/components/settings/`
+- **Database tools** → `src/components/database/`
+
+Always update the corresponding `index.ts` barrel exports when adding new components.
+
 ### Adding Features
-- New components should be added to `src/components/`
+- New components should follow the modular structure above
 - Shared types go in `shared/types.ts`
+- Utility functions go in `src/utils/`
 - Tauri main process code goes in `src-tauri/`
 
 ## Building for Production

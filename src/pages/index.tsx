@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Box, Flex, IconButton } from '@chakra-ui/react';
 import { Menu } from 'lucide-react';
-import Sidebar, { Conversation } from '../components/Sidebar';
-import ChatStream from '../components/ChatStream';
-import MessageInput from '../components/MessageInput';
-import WelcomeScreen from '../components/WelcomeScreen';
+import { Sidebar, type Conversation } from '../components/navigation';
+import { ChatStream } from '../components/chat';
+import { MessageInput } from '../components/chat';
+import { WelcomeScreen } from '../components/layout';
 import type { ChatMessage } from '@shared/types';
 
 const conversationData: Conversation[] = [

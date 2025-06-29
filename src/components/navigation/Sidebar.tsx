@@ -11,7 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { Search, MessageCircle, Plus, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/router';
-import SettingsDropdown from './ui/SettingsDropdown';
+import SettingsDropdown from '../ui/SettingsDropdown';
 
 export interface Conversation {
   id: string;
