@@ -6,10 +6,18 @@ import { MessageCircle, Sparkles, Zap } from 'lucide-react';
 const MotionBox = motion(Box);
 
 interface WelcomeScreenProps {
-  onStartChat: () => void;
+  onStartChat?: () => void;
+  onNewChat?: () => void;
 }
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartChat }) => {
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartChat, onNewChat }) => {
+  const handleStart = () => {
+    if (onNewChat) {
+      onNewChat();
+    } else if (onStartChat) {
+      onStartChat();
+    }
+  };
   const suggestions = [
     { icon: MessageCircle, text: "Ask me anything about technology" },
     { icon: Sparkles, text: "Let's brainstorm some creative ideas" },
@@ -105,7 +113,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartChat }) => {
                   boxShadow: "0 8px 25px rgba(102, 126, 234, 0.15)"
                 }}
                 transition="all 0.2s ease"
-                onClick={onStartChat}
+                onClick={handleStart}
                 display="flex"
                 alignItems="center"
                 gap={4}

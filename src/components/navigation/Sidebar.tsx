@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Box, 
-  Flex, 
   VStack, 
   HStack, 
   Text, 
   Input, 
   Button, 
   IconButton,
+  Spinner,
 } from '@chakra-ui/react';
-import { Search, MessageCircle, Plus, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useRouter } from 'next/router';
+import { Search, MessageCircle, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import SettingsDropdown from '../ui/SettingsDropdown';
+import useSessions from '@/hooks/useSessions';
+import type { Session } from '@shared/database-types';
 
 export interface Conversation {
   id: string;
@@ -22,6 +23,7 @@ interface SidebarProps {
   conversations: Conversation[];
   activeId: string;
   onSelect: (id: string) => void;
+  onNewChat?: () => void;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -30,10 +32,46 @@ const Sidebar: React.FC<SidebarProps> = ({
   conversations, 
   activeId, 
   onSelect, 
+  onNewChat,
   isCollapsed = false, 
   onToggleCollapse 
 }) => {
-  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
+  const { sessions, loading, error, createSession } = useSessions();
+
+  // Use passed conversations or fall back to sessions, then apply search filter
+  const filteredConversations = useMemo(() => {
+    // Prefer passed conversations, fall back to sessions
+    const allConversations = conversations.length > 0 
+      ? conversations 
+      : sessions.map(session => ({
+          id: session.id.toString(),
+          name: session.name,
+        }));
+
+    if (!searchQuery.trim()) {
+      return allConversations;
+    }
+
+    return allConversations.filter(conv => 
+      conv.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [conversations, sessions, searchQuery]);
+
+  const handleNewChat = async () => {
+    if (onNewChat) {
+      onNewChat();
+    } else {
+      // Create a new session with a default name
+      const timestamp = new Date().toLocaleString();
+      await createSession(`New Chat - ${timestamp}`);
+    }
+  };
+
+  const handleClearAll = async () => {
+    // TODO: Implement clear all sessions functionality
+    console.log('Clear all sessions - to be implemented');
+  };
 
   return (
     <Box 
@@ -136,6 +174,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 borderRadius="25px"
                 fontSize="16px"
                 fontWeight="400"
+                onClick={handleNewChat}
+                disabled={loading}
                 _hover={{
                   bg: "linear-gradient(135deg, #4092ff 0%, #5a4ce6 100%)",
                   transform: 'translateY(-1px)',
@@ -148,7 +188,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 alignItems="center"
                 gap={3}
               >
-                <Plus size={18} />
+                {loading ? <Spinner size="sm" /> : <Plus size={18} />}
                 New chat
               </Button>
               <SettingsDropdown isCollapsed={false} />
@@ -177,6 +217,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 border="none"
                 color="white"
                 fontSize="16px"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 _placeholder={{ 
                   color: 'rgba(255, 255, 255, 0.7)',
                   fontWeight: '400'
@@ -206,6 +248,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 color="#5661F6"
                 cursor="pointer"
                 fontFamily="Inter"
+                onClick={handleClearAll}
                 _hover={{ textDecoration: 'underline' }}
               >
                 Clear All
@@ -220,13 +263,48 @@ const Sidebar: React.FC<SidebarProps> = ({
             align="stretch" 
             flex={1} 
             overflowY="auto"
+            maxH="calc(100vh - 400px)" // Reserve space for header, buttons, and footer
             css={{
               '&::-webkit-scrollbar': {
                 width: '0px',
               },
             }}
           >
-            {conversations.map(conv => (
+            {error && (
+              <Box bg="red.50" border="1px" borderColor="red.200" borderRadius="md" p={3} mb={2}>
+                <Text fontSize="sm" color="red.600">{error}</Text>
+              </Box>
+            )}
+            
+            {loading && !sessions.length && (
+              <Box display="flex" justifyContent="center" py={4}>
+                <Spinner size="md" color="#5661F6" />
+              </Box>
+            )}
+            
+            {!loading && !error && filteredConversations.length === 0 && sessions.length === 0 && conversations.length === 0 && (
+              <Box textAlign="center" py={8}>
+                <Text fontSize="14px" color="gray.500" fontFamily="Inter">
+                  No conversations yet
+                </Text>
+                <Text fontSize="12px" color="gray.400" fontFamily="Inter" mt={1}>
+                  Start a new chat to begin
+                </Text>
+              </Box>
+            )}
+            
+            {!loading && !error && searchQuery && filteredConversations.length === 0 && (sessions.length > 0 || conversations.length > 0) && (
+              <Box textAlign="center" py={8}>
+                <Text fontSize="14px" color="gray.500" fontFamily="Inter">
+                  No conversations found
+                </Text>
+                <Text fontSize="12px" color="gray.400" fontFamily="Inter" mt={1}>
+                  Try a different search term
+                </Text>
+              </Box>
+            )}
+            
+            {filteredConversations.map(conv => (
               <Box
                 key={conv.id}
                 py={4}
@@ -263,7 +341,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </VStack>
 
           {/* Last 7 Days Section */}
-          <Box px={{ base: 3, sm: 4, md: 6 }} py={4}>
+          <Box px={{ base: 3, sm: 4, md: 6 }} py={2} flexShrink={0}>
             <Text 
               fontSize="14px" 
               fontWeight="500" 
@@ -275,7 +353,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </Box>
 
           {/* Vibe Note Section */}
-          <Box p={{ base: 3, sm: 4, md: 6 }} borderTop="1px solid" borderColor="gray.100">
+          <Box p={{ base: 3, sm: 4, md: 6 }} borderTop="1px solid" borderColor="gray.100" flexShrink={0}>
             <Box
               p={4}
               borderRadius="20px"
@@ -309,6 +387,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 borderRadius="24px"
                 bg="linear-gradient(135deg, #459AFF 0%, #6054FF 100%)"
                 color="white"
+                onClick={handleNewChat}
+                disabled={loading}
                 _hover={{
                   bg: "linear-gradient(135deg, #4092ff 0%, #5a4ce6 100%)",
                   transform: 'translateY(-1px)',
@@ -318,7 +398,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 }}
                 transition="all 0.2s ease"
               >
-                <Plus size={20} />
+                {loading ? <Spinner size="sm" /> : <Plus size={20} />}
               </IconButton>
               <SettingsDropdown isCollapsed={true} />
             </VStack>
@@ -355,7 +435,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               },
             }}
           >
-            {conversations.map(conv => (
+            {filteredConversations.map(conv => (
               <IconButton
                 key={conv.id}
                 aria-label={conv.name}

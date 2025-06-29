@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import type { Session, CreateSession, Conversation, CreateConversation, Message, CreateMessage } from '@shared/database-types';
 
 // Lazy-load the current window instance to avoid SSR issues
 let appWindow: any = null;
@@ -30,6 +31,72 @@ export const tauriCommands = {
   async hideWindow(): Promise<void> {
     if (typeof window === 'undefined') return;
     return await invoke('hide_window');
+  },
+
+  // Session commands
+  async createSession(name: string, role?: string, goals?: string): Promise<Session> {
+    if (typeof window === 'undefined') throw new Error('Sessions not available in SSR');
+    return await invoke('create_session', { name, role, goals });
+  },
+
+  async getSessions(): Promise<Session[]> {
+    if (typeof window === 'undefined') return [];
+    return await invoke('get_sessions');
+  },
+
+  async deleteSession(sessionId: number): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    return await invoke('delete_session', { sessionId });
+  },
+
+  // Conversation commands
+  async createConversation(sessionId: number, status?: string): Promise<Conversation> {
+    if (typeof window === 'undefined') throw new Error('Conversations not available in SSR');
+    return await invoke('create_conversation', { sessionId, status });
+  },
+
+  async getConversations(sessionId?: number): Promise<Conversation[]> {
+    if (typeof window === 'undefined') return [];
+    return await invoke('get_conversations', { sessionId });
+  },
+
+  async deleteConversation(conversationId: number): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    return await invoke('delete_conversation', { conversationId });
+  },
+
+  // Message commands
+  async saveMessage(
+    conversationId: number, 
+    role: string, 
+    content: string, 
+    embedding?: number[], 
+    recallScore?: number
+  ): Promise<Message> {
+    if (typeof window === 'undefined') throw new Error('Messages not available in SSR');
+    return await invoke('save_message', { 
+      conversationId, 
+      role, 
+      content, 
+      embedding, 
+      recallScore 
+    });
+  },
+
+  async getRecentMessages(conversationId: number, limit?: number): Promise<Message[]> {
+    if (typeof window === 'undefined') return [];
+    return await invoke('get_recent_messages', { conversationId, limit });
+  },
+
+  async deleteMessage(messageId: number): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    return await invoke('delete_message', { messageId });
+  },
+
+  // Database commands
+  async initDatabase(databasePath?: string): Promise<string> {
+    if (typeof window === 'undefined') return 'Database not available in SSR';
+    return await invoke('init_database', { databasePath });
   }
 };
 

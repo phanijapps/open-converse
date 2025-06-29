@@ -1,48 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Box, Flex, IconButton } from '@chakra-ui/react';
 import { Menu } from 'lucide-react';
 import { Sidebar, type Conversation } from '../components/navigation';
 import { ChatStream } from '../components/chat';
 import { MessageInput } from '../components/chat';
 import { WelcomeScreen } from '../components/layout';
+import useSessions from '@/hooks/useSessions';
 import type { ChatMessage } from '@shared/types';
 
-const conversationData: Conversation[] = [
-  { id: '1', name: 'Crypto Lending App' },
-  { id: '2', name: 'Operator Grammar Types' },
-  { id: '3', name: 'Min States For Binary DFA' },
-  { id: '4', name: 'Lorem POS system' },
-  { id: '5', name: 'Create html game environment for website' },
-  { id: '6', name: 'Welcome Chat' },
-];
-
-const initialMessages: Record<string, ChatMessage[]> = {
-  '1': [
-    { id: '1', sender: 'ai', content: 'Welcome to Crypto Lending App! How can I help you today?', timestamp: Date.now() },
-    { id: '2', sender: 'user', content: 'Tell me about the benefits of crypto lending.', timestamp: Date.now() },
-    { id: '3', sender: 'ai', content: 'Crypto lending offers several advantages: higher interest rates compared to traditional savings, passive income generation, and portfolio diversification. You can earn yields on your cryptocurrency holdings while maintaining ownership.', timestamp: Date.now() },
-  ],
-  '2': [
-    { id: '1', sender: 'ai', content: 'Let\'s explore operator grammar types in formal language theory.', timestamp: Date.now() },
-    { id: '2', sender: 'user', content: 'What are the different types of operator grammars?', timestamp: Date.now() },
-  ],
-  '3': [
-    { id: '1', sender: 'ai', content: 'Binary DFA (Deterministic Finite Automaton) analysis focuses on minimizing states.', timestamp: Date.now() },
-  ],
-  '4': [
-    { id: '1', sender: 'ai', content: 'Let me help you with your POS system requirements.', timestamp: Date.now() },
-  ],
-  '5': [
-    { id: '1', sender: 'user', content: 'Create html game environment for website', timestamp: Date.now() },
-    { id: '2', sender: 'ai', content: 'I\'ll help you create an HTML game environment! What type of game are you planning to build?', timestamp: Date.now() },
-  ],
-  '6': [], // Empty conversation for testing welcome screen
-};
-
 export default function Home() {
-  const [activeId, setActiveId] = useState('6'); // Start with empty conversation to show WelcomeScreen
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(initialMessages);
+  const { sessions, loading, createSession } = useSessions();
+  const [activeId, setActiveId] = useState<string>(''); // Start with no active session
+  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Default expanded on desktop
+
+  // Transform sessions to conversations format
+  const conversations = useMemo((): Conversation[] => {
+    return sessions.map(session => ({
+      id: session.id.toString(),
+      name: session.name,
+    }));
+  }, [sessions]);
+
+  // Set the first session as active when sessions load
+  useEffect(() => {
+    if (sessions.length > 0 && !activeId) {
+      setActiveId(sessions[0].id.toString());
+    }
+  }, [sessions, activeId]);
+
+  const handleNewChat = async () => {
+    const timestamp = new Date().toLocaleString();
+    const newSession = await createSession(`New Chat - ${timestamp}`);
+    if (newSession) {
+      setActiveId(newSession.id.toString());
+      // Initialize empty messages for the new session
+      setMessages(prev => ({
+        ...prev,
+        [newSession.id.toString()]: [],
+      }));
+    }
+  };
 
   const handleSend = (msg: string) => {
     const newUserMessage: ChatMessage = { 
@@ -101,15 +99,13 @@ export default function Home() {
   const currentMessages = messages[activeId] || [];
   const hasMessages = currentMessages.length > 0;
 
-  // Backgrounds for each conversation
+  // Backgrounds for each conversation (session)
   const backgrounds: Record<string, string> = {
-    '1': 'linear(to-br, blue.50, purple.50, pink.50)',
-    '2': 'linear(to-br, green.50, blue.50, cyan.50)',
-    '3': 'linear(to-br, yellow.50, orange.50, red.50)',
-    '4': 'linear(to-br, purple.50, pink.50, blue.50)',
-    '5': 'linear(to-br, teal.50, green.50, blue.50)',
-    '6': 'linear(to-br, gray.50, blue.50)',
+    default: 'linear(to-br, gray.50, blue.50)',
   };
+
+  // Get dynamic background or use default
+  const currentBackground = backgrounds[activeId] || backgrounds.default;
 
   return (
     <Flex h="100vh" w="100vw" bg="gray.100" overflow="hidden" position="relative">
@@ -118,9 +114,10 @@ export default function Home() {
         flexShrink={0}
       >
         <Sidebar
-          conversations={conversationData}
+          conversations={conversations}
           activeId={activeId}
           onSelect={setActiveId}
+          onNewChat={handleNewChat}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         />
@@ -129,7 +126,7 @@ export default function Home() {
         flex={1} 
         display="flex" 
         flexDirection="column" 
-        bgGradient={backgrounds[activeId]}
+        bgGradient={currentBackground}
         transition="background 0.3s ease"
         minWidth={0}
         width="100%"
@@ -185,7 +182,7 @@ export default function Home() {
         ) : (
           <>
             <Box flex={1} overflow="hidden" height="100%" minHeight={0}>
-              <WelcomeScreen onStartChat={handleStartChat} />
+              <WelcomeScreen onNewChat={handleNewChat} />
             </Box>
             <Box flexShrink={0}>
               <MessageInput onSend={handleSend} />
