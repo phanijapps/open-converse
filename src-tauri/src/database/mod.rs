@@ -2,7 +2,7 @@
 /// 
 /// This module provides a modular database abstraction layer that supports:
 /// - SQLite backend with vector search capabilities
-/// - New three-table design: Persona, Conversation, Message
+/// - New two-table design: Session (acting as persona/conversation), Message
 /// - Migration system for schema management
 /// - CRUD operations exposed via Tauri commands
 /// 
@@ -18,7 +18,10 @@ pub mod tests;
 
 use std::path::Path;
 use thiserror::Error;
-use models::{Session, Conversation, Message, CreateSession, CreateConversation, CreateMessage, DatabaseStats};
+use models::{Session, Message, CreateSession, CreateMessage, DatabaseStats};
+use crate::connectors::openrouter::OpenRouterConnector;
+use crate::connectors::settings::SettingsManager;
+use crate::connectors::Connector;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {
@@ -44,14 +47,9 @@ pub trait MemoryRepo {
     async fn get_sessions(&self) -> Result<Vec<Session>>;
     async fn delete_session(&self, session_id: i64) -> Result<bool>;
 
-    // Conversation operations
-    async fn create_conversation(&self, conversation: CreateConversation) -> Result<Conversation>;
-    async fn get_conversations(&self, session_id: Option<i64>) -> Result<Vec<Conversation>>;
-    async fn delete_conversation(&self, conversation_id: i64) -> Result<bool>;
-
     // Message operations
     async fn save_message(&self, message: CreateMessage) -> Result<Message>;
-    async fn recent_messages(&self, conversation_id: i64, limit: Option<i64>) -> Result<Vec<Message>>;
+    async fn recent_messages(&self, session_id: i64, limit: Option<i64>) -> Result<Vec<Message>>;
     async fn delete_message(&self, message_id: i64) -> Result<bool>;
 
     // Vector search operations
@@ -96,7 +94,7 @@ impl DatabaseManager {
     pub fn default_db_path() -> std::path::PathBuf {
         let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         Path::new(&home_dir)
-            .join(".opencov")
+            .join(".openconv")
             .join("db")
             .join("conv.db")
     }

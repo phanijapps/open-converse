@@ -12,34 +12,28 @@ DROP INDEX IF EXISTS idx_short_term_expires_at;
 DROP INDEX IF EXISTS idx_vector_db_collection;
 DROP INDEX IF EXISTS idx_vector_db_document_id;
 
--- Create new session table
+-- Create new session table (acts as both persona and conversation)
 CREATE TABLE session (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     role TEXT,
     goals TEXT,
+    llm_provider TEXT,
+    model_id TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
--- Create conversation table with foreign key to session
-CREATE TABLE conversation (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id INTEGER NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-    status TEXT NOT NULL DEFAULT 'open',
-    FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
-);
-
--- Create message table with foreign key to conversation
+-- Create message table with foreign key to session
 CREATE TABLE message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    conversation_id INTEGER NOT NULL,
+    session_id INTEGER NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
     content TEXT NOT NULL,
     ts INTEGER NOT NULL DEFAULT (unixepoch()),
     embedding BLOB,
     recall_score REAL,
-    FOREIGN KEY (conversation_id) REFERENCES conversation(id) ON DELETE CASCADE
+    FOREIGN KEY (session_id) REFERENCES session(id) ON DELETE CASCADE
 );
 
 -- Load VSS extension and create vector index for semantic search
@@ -53,9 +47,7 @@ CREATE VIRTUAL TABLE msg_idx USING vss0(
 
 -- Create indexes for performance
 CREATE INDEX idx_session_created_at ON session(created_at);
-CREATE INDEX idx_conversation_session_id ON conversation(session_id);
-CREATE INDEX idx_conversation_created_at ON conversation(created_at);
-CREATE INDEX idx_message_conversation_id ON message(conversation_id);
+CREATE INDEX idx_message_session_id ON message(session_id);
 CREATE INDEX idx_message_ts ON message(ts);
 CREATE INDEX idx_message_role ON message(role);
 
@@ -66,7 +58,6 @@ CREATE INDEX idx_message_role ON message(role);
 -- Drop new tables
 DROP TABLE IF EXISTS msg_idx;
 DROP TABLE IF EXISTS message;
-DROP TABLE IF EXISTS conversation;
 DROP TABLE IF EXISTS session;
 
 -- Recreate legacy tables

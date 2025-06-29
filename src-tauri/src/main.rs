@@ -12,6 +12,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 mod database;
+pub mod connectors;
+mod settings;
 
 use database::commands::DatabaseState;
 
@@ -111,16 +113,17 @@ pub fn run() {
             database::commands::create_session,
             database::commands::get_sessions,
             database::commands::delete_session,
-            // Conversation commands
-            database::commands::create_conversation,
-            database::commands::get_conversations,
-            database::commands::delete_conversation,
             // Message commands
             database::commands::save_message,
             database::commands::get_recent_messages,
             database::commands::delete_message,
             // Search commands
             database::commands::semantic_search,
+            // OpenRouter settings test
+            database::commands::tauri_test_openrouter_settings,
+            // Settings commands
+            settings::save_settings,
+            settings::load_settings,
         ])
         .setup(|app| {
             // Initialize database state
