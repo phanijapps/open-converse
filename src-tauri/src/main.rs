@@ -8,6 +8,12 @@ use tauri::{
 };
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+mod database;
+
+use database::commands::DatabaseState;
 
 // Tauri commands for frontend communication
 #[tauri::command]
@@ -95,9 +101,32 @@ pub fn run() {
             show_window,
             hide_window,
             read_settings_file,
-            write_settings_file
+            write_settings_file,
+            // Database commands
+            database::commands::init_database,
+            database::commands::get_database_path,
+            database::commands::get_database_stats,
+            database::commands::clear_all_memory,
+            // Session commands
+            database::commands::create_session,
+            database::commands::get_sessions,
+            database::commands::delete_session,
+            // Conversation commands
+            database::commands::create_conversation,
+            database::commands::get_conversations,
+            database::commands::delete_conversation,
+            // Message commands
+            database::commands::save_message,
+            database::commands::get_recent_messages,
+            database::commands::delete_message,
+            // Search commands
+            database::commands::semantic_search,
         ])
         .setup(|app| {
+            // Initialize database state
+            let database_state: DatabaseState = Arc::new(Mutex::new(None));
+            app.manage(database_state);
+
             // Create tray menu items
             let show = MenuItem::new(app, "Show", true, None::<&str>)?;
             let hide = MenuItem::new(app, "Hide", true, None::<&str>)?;

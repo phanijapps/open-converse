@@ -9,8 +9,9 @@ import {
   Button, 
   IconButton,
 } from '@chakra-ui/react';
-import { Search, Settings, MessageCircle, Plus, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, MessageCircle, Plus, Menu, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/router';
+import SettingsDropdown from './ui/SettingsDropdown';
 
 export interface Conversation {
   id: string;
@@ -34,9 +35,6 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const router = useRouter();
 
-  const handleSettingsClick = () => {
-    router.push('/settings');
-  };
   return (
     <Box 
       w={isCollapsed ? "64px" : { base: "100vw", md: "320px", lg: "348px", xl: "380px" }}
@@ -153,25 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <Plus size={18} />
                 New chat
               </Button>
-              <IconButton
-                aria-label="Settings"
-                h="50px"
-                w="50px"
-                borderRadius="25px"
-                bg="#D1E6FF"
-                color="#51A1FF"
-                onClick={handleSettingsClick}
-                _hover={{
-                  bg: "#C1D6FF",
-                  transform: 'translateY(-1px)',
-                }}
-                _active={{
-                  transform: 'translateY(0)',
-                }}
-                transition="all 0.2s ease"
-              >
-                <Settings size={18} strokeWidth={1.5} />
-              </IconButton>
+              <SettingsDropdown isCollapsed={false} />
             </HStack>
           </Box>
 
@@ -340,25 +320,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               >
                 <Plus size={20} />
               </IconButton>
-              <IconButton
-                aria-label="Settings"
-                w="48px"
-                h="48px"
-                borderRadius="24px"
-                bg="#D1E6FF"
-                color="#51A1FF"
-                onClick={handleSettingsClick}
-                _hover={{
-                  bg: "#C1D6FF",
-                  transform: 'translateY(-1px)',
-                }}
-                _active={{
-                  transform: 'translateY(0)',
-                }}
-                transition="all 0.2s ease"
-              >
-                <Settings size={18} strokeWidth={1.5} />
-              </IconButton>
+              <SettingsDropdown isCollapsed={true} />
             </VStack>
           </Box>
 
