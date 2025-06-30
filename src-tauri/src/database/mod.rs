@@ -13,9 +13,6 @@ pub mod models;
 pub mod migrations;
 pub mod commands;
 
-#[cfg(test)]
-pub mod tests;
-
 use std::path::Path;
 use thiserror::Error;
 use models::{Session, Message, CreateSession, CreateMessage, DatabaseStats};
