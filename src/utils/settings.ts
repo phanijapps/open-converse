@@ -1,6 +1,19 @@
-import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from './tauri';
 import type { SettingsData } from '@shared/types';
+
+// Safe wrapper for Tauri invoke that doesn't break in browser
+let tauriInvoke: any = null;
+const getTauriInvoke = async () => {
+  if (!tauriInvoke && typeof window !== 'undefined' && isTauri()) {
+    try {
+      const tauri = await import('@tauri-apps/api/core');
+      tauriInvoke = tauri.invoke;
+    } catch (e) {
+      console.warn('Failed to load Tauri API:', e);
+    }
+  }
+  return tauriInvoke;
+};
 
 // Default settings (provider-agnostic)
 const DEFAULT_SETTINGS: SettingsData = {
@@ -21,9 +34,12 @@ export async function readSettings(): Promise<SettingsData> {
     if (isTauriEnv) {
       console.debug('[Settings] Using Tauri backend to load settings from file');
       try {
-        const result = await invoke('load_settings');
-        console.debug('[Settings] Successfully loaded from Tauri backend:', result);
-        return result as SettingsData;
+        const invoke = await getTauriInvoke();
+        if (invoke) {
+          const result = await invoke('load_settings');
+          console.debug('[Settings] Successfully loaded from Tauri backend:', result);
+          return result as SettingsData;
+        }
       } catch (tauriError) {
         console.error('[Settings] Tauri load_settings failed:', tauriError);
         console.warn('[Settings] Falling back to localStorage due to Tauri error');
@@ -55,9 +71,12 @@ export async function writeSettings(settings: SettingsData): Promise<void> {
     if (isTauriEnv) {
       console.debug('[Settings] Using Tauri backend to save settings to file');
       try {
-        await invoke('save_settings', { settings });
-        console.debug('[Settings] Successfully saved to Tauri backend');
-        return;
+        const invoke = await getTauriInvoke();
+        if (invoke) {
+          await invoke('save_settings', { settings });
+          console.debug('[Settings] Successfully saved to Tauri backend');
+          return;
+        }
       } catch (tauriError) {
         console.error('[Settings] Tauri save_settings failed:', tauriError);
         console.warn('[Settings] Falling back to localStorage due to Tauri error');

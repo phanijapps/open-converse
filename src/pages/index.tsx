@@ -1,18 +1,35 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Box, Flex, IconButton } from '@chakra-ui/react';
-import { Menu } from 'lucide-react';
+import { Box, Flex } from '@chakra-ui/react';
 import { Sidebar, type Conversation } from '../components/navigation';
 import { ChatStream } from '../components/chat';
 import { MessageInput } from '../components/chat';
 import { WelcomeScreen } from '../components/layout';
 import useSessions from '@/hooks/useSessions';
-import type { ChatMessage } from '@shared/types';
+import { AgentFactory } from '@/agents';
+import { readSettings } from '@/utils/settings';
+import type { ChatMessage, SettingsData } from '@shared/types';
 
 export default function Home() {
   const { sessions, loading, createSession } = useSessions();
   const [activeId, setActiveId] = useState<string>(''); // Start with no active session
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Default expanded on desktop
+  const [settings, setSettings] = useState<SettingsData | null>(null);
+  const [isAgentConfigured, setIsAgentConfigured] = useState(false);
+
+  // Load settings on component mount
+  useEffect(() => {
+    const loadAppSettings = async () => {
+      try {
+        const currentSettings = await readSettings();
+        setSettings(currentSettings);
+        setIsAgentConfigured(AgentFactory.validateSettings(currentSettings));
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      }
+    };
+    loadAppSettings();
+  }, []);
 
   // Transform sessions to conversations format
   const conversations = useMemo((): Conversation[] => {
@@ -42,7 +59,7 @@ export default function Home() {
     }
   };
 
-  const handleSend = (msg: string) => {
+  const handleSend = async (msg: string) => {
     const newUserMessage: ChatMessage = { 
       id: Date.now().toString(), 
       sender: 'user', 
@@ -59,33 +76,73 @@ export default function Home() {
       ],
     }));
 
-    // Simulate AI thinking time and then respond
-    setTimeout(() => {
-      const aiResponses = [
-        "That's a great question! Let me think about that for a moment.",
-        "I understand what you're asking. Here's my perspective on that topic.",
-        "Thanks for sharing that with me! I'd be happy to help.",
-        "That's an interesting point. Let me provide you with some insights.",
-        "I appreciate you bringing this up. Here's what I think about it.",
-      ];
-      
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-      
-      const newAiMessage: ChatMessage = { 
-        id: (Date.now() + 1).toString(), 
-        sender: 'ai', 
-        content: randomResponse, 
-        timestamp: Date.now() 
-      };
+    // Use agent system if configured, otherwise fallback to mock response
+    if (isAgentConfigured && settings) {
+      try {
+        // Create and use agent
+        const agent = AgentFactory.createAgent('general', settings);
+        const aiResponse = await agent.sendMessage(msg);
+        
+        const newAiMessage: ChatMessage = { 
+          id: (Date.now() + 1).toString(), 
+          sender: 'ai', 
+          content: aiResponse, 
+          timestamp: Date.now() 
+        };
 
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: [
-          ...prev[activeId],
-          newAiMessage,
-        ],
-      }));
-    }, 1000 + Math.random() * 2000); // Random delay between 1-3 seconds
+        setMessages(prev => ({
+          ...prev,
+          [activeId]: [
+            ...prev[activeId],
+            newAiMessage,
+          ],
+        }));
+      } catch (error) {
+        console.error('Agent error:', error);
+        
+        // Fallback to error message
+        const errorMessage: ChatMessage = { 
+          id: (Date.now() + 1).toString(), 
+          sender: 'ai', 
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your API configuration in settings.`, 
+          timestamp: Date.now() 
+        };
+
+        setMessages(prev => ({
+          ...prev,
+          [activeId]: [
+            ...prev[activeId],
+            errorMessage,
+          ],
+        }));
+      }
+    } else {
+      // Fallback to mock response if agent system is not configured
+      setTimeout(() => {
+        const aiResponses = [
+          "I'm not fully configured yet. Please set up your AI provider in the agent-test page or settings.",
+          "To enable AI responses, please configure an API key in the settings.",
+          "I'm running in demo mode. Visit /agent-test to configure a real AI provider.",
+        ];
+        
+        const mockResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+        
+        const newAiMessage: ChatMessage = { 
+          id: (Date.now() + 1).toString(), 
+          sender: 'ai', 
+          content: mockResponse, 
+          timestamp: Date.now() 
+        };
+
+        setMessages(prev => ({
+          ...prev,
+          [activeId]: [
+            ...prev[activeId],
+            newAiMessage,
+          ],
+        }));
+      }, 1000);
+    }
   };
 
   const handleStartChat = () => {
@@ -108,85 +165,35 @@ export default function Home() {
   const currentBackground = backgrounds[activeId] || backgrounds.default;
 
   return (
-    <Flex h="100vh" w="100vw" bg="gray.100" overflow="hidden" position="relative">
-      <Box 
-        display="block"
-        flexShrink={0}
-      >
-        <Sidebar
-          conversations={conversations}
-          activeId={activeId}
-          onSelect={setActiveId}
-          onNewChat={handleNewChat}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
-      </Box>
+    <Flex h="100vh" bg="gray.100">
+      <Sidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={setActiveId}
+        onNewChat={handleNewChat}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
       <Box 
         flex={1} 
         display="flex" 
         flexDirection="column" 
         bgGradient={currentBackground}
         transition="background 0.3s ease"
-        minWidth={0}
-        width="100%"
-        overflow="hidden"
-        position="relative"
-        height="100vh"
       >
-        {        /* Mobile Menu Button */}
-        <IconButton
-          aria-label="Open menu"
-          position="absolute"
-          top={4}
-          left={4}
-          zIndex={1001}
-          size="sm"
-          variant="solid"
-          bg="white"
-          color="gray.700"
-          boxShadow="lg"
-          borderRadius="full"
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          display={{ base: "flex", md: "none" }}
-          _hover={{
-            bg: "gray.50"
-          }}
-        >
-          <Menu size={20} />
-        </IconButton>
-
-        {/* Mobile Overlay */}
-        {!isSidebarCollapsed && (
-          <Box
-            position="fixed"
-            top={0}
-            left={0}
-            w="100vw"
-            h="100vh"
-            bg="blackAlpha.600"
-            zIndex={999}
-            display={{ base: "block", md: "none" }}
-            onClick={() => setIsSidebarCollapsed(true)}
-          />
-        )}
         {hasMessages ? (
           <>
-            <Box flex={1} overflow="hidden" height="100%" minHeight={0}>
+            <Box flex={1} overflow="hidden">
               <ChatStream messages={currentMessages} />
             </Box>
-            <Box flexShrink={0}>
-              <MessageInput onSend={handleSend} />
-            </Box>
+            <MessageInput onSend={handleSend} />
           </>
         ) : (
           <>
-            <Box flex={1} overflow="hidden" height="100%" minHeight={0}>
+            <Box flex={1}>
               <WelcomeScreen onNewChat={handleNewChat} />
             </Box>
-            <Box flexShrink={0}>
-              <MessageInput onSend={handleSend} />
-            </Box>
+            <MessageInput onSend={handleSend} />
           </>
         )}
       </Box>
