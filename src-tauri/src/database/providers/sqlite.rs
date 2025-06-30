@@ -156,6 +156,24 @@ impl MemoryRepo for SqliteProvider {
         Ok(sessions)
     }
 
+    async fn get_session_by_id(&self, session_id: i64) -> Result<Session> {
+        let row = sqlx::query("SELECT * FROM session WHERE id = ?")
+            .bind(session_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(Session {
+            id: row.get("id"),
+            name: row.get("name"),
+            role: row.get("role"),
+            goals: row.get("goals"),
+            llm_provider: row.get("llm_provider"),
+            model_id: row.get("model_id"),
+            status: row.get("status"),
+            created_at: row.get("created_at"),
+        })
+    }
+
     async fn delete_session(&self, session_id: i64) -> Result<bool> {
         let result = sqlx::query("DELETE FROM session WHERE id = ?")
             .bind(session_id)

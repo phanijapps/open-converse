@@ -138,7 +138,14 @@ const ChatStream: React.FC<ChatStreamProps> = ({ messages }) => {
                 )}
                 
                 <Box flex={1}>
-                  <Text lineHeight="relaxed">{msg.content}</Text>
+                  <Text 
+                    lineHeight="tall"
+                    fontSize="md"
+                    fontWeight="normal"
+                    className={msg.sender === 'user' ? 'chat-message-user' : 'chat-message-ai'}
+                  >
+                    {msg.content}
+                  </Text>
                   <HStack 
                     gap={2} 
                     mt={2} 

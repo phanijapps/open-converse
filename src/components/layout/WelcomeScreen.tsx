@@ -74,13 +74,15 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartChat, onNewChat })
             fontWeight="bold" 
             bgGradient="linear(135deg, #667eea 0%, #764ba2 100%)" 
             bgClip="text"
+            lineHeight="shorter"
           >
             Welcome to OpenConverse
           </Text>
           <Text 
-            fontSize="xl" 
+            fontSize="lg" 
             color="gray.600" 
-            lineHeight="relaxed"
+            lineHeight="tall"
+            fontWeight="normal"
             maxW="lg"
           >
             Your intelligent AI companion is ready to chat. Start a conversation and explore the possibilities together.
@@ -121,7 +123,12 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartChat, onNewChat })
                 <Box color="#667eea">
                   <suggestion.icon size={24} />
                 </Box>
-                <Text color="gray.700" fontWeight="medium">
+                <Text 
+                  color="gray.700" 
+                  fontWeight="medium"
+                  fontSize="md"
+                  lineHeight="base"
+                >
                   {suggestion.text}
                 </Text>
               </Button>

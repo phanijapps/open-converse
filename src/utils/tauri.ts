@@ -1,6 +1,35 @@
-import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Session, CreateSession, Message, CreateMessage } from '@shared/database-types';
+
+/**
+ * Check if we're running in a Tauri environment
+ */
+export function isTauri(): boolean {
+  // Check for both window and the Tauri internals
+  if (typeof window === 'undefined') return false;
+  
+  const w = window as any;
+  return typeof w.__TAURI_INTERNALS__ !== 'undefined' &&
+         typeof w.__TAURI_INTERNALS__.invoke === 'function';
+}
+
+// Safe Tauri invoke wrapper
+const safeInvoke = async (command: string, args?: any) => {
+  if (typeof window !== 'undefined') {
+    try {
+      // Dynamic import only when needed and when globals exist
+      const w = window as any;
+      if (typeof w.__TAURI_INTERNALS__ !== 'undefined' || typeof w.__TAURI__ !== 'undefined') {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return await invoke(command, args);
+      }
+    } catch (error) {
+      console.error('Failed to invoke Tauri command:', command, error);
+      throw error;
+    }
+  }
+  throw new Error('Tauri not available');
+};
 
 // Lazy-load the current window instance to avoid SSR issues
 let appWindow: any = null;
@@ -15,22 +44,22 @@ const getAppWindow = () => {
 export const tauriCommands = {
   async greet(name: string): Promise<string> {
     if (typeof window === 'undefined') return 'Hello from SSR!';
-    return await invoke('greet', { name });
+    return await safeInvoke('greet', { name }) as string;
   },
 
   async getAiResponse(message: string): Promise<string> {
     if (typeof window === 'undefined') return 'Response from SSR';
-    return await invoke('get_ai_response', { message });
+    return await safeInvoke('get_ai_response', { message }) as string;
   },
 
   async showWindow(): Promise<void> {
     if (typeof window === 'undefined') return;
-    return await invoke('show_window');
+    await safeInvoke('show_window');
   },
 
   async hideWindow(): Promise<void> {
     if (typeof window === 'undefined') return;
-    return await invoke('hide_window');
+    await safeInvoke('hide_window');
   },
 
   // Session commands
@@ -42,25 +71,33 @@ export const tauriCommands = {
     model_id?: string
   ): Promise<Session> {
     if (typeof window === 'undefined') throw new Error('Sessions not available in SSR');
-    return await invoke('create_session', { 
+    return await safeInvoke('create_session', { 
       name, 
       role, 
       goals, 
       llm_provider, 
       model_id 
-    });
+    }) as Session;
   },
 
   async getSessions(): Promise<Session[]> {
     if (typeof window === 'undefined') return [];
-    return await invoke('get_sessions');
+    return await safeInvoke('get_sessions') as Session[];
+  },
+
+  async getSessionById(sessionId: number): Promise<Session> {
+    if (typeof window === 'undefined') throw new Error('Sessions not available in SSR');
+    console.log('getSessionById called with:', { sessionId });
+    // Pass parameters wrapped in params object to match GetSessionParams struct
+    return await safeInvoke('get_session_by_id', { 
+      params: { sessionId }
+    }) as Session;
   },
 
   async deleteSession(sessionId: number): Promise<boolean> {
     console.log('=== TAURI COMMAND DELETE SESSION START ===');
     console.log('tauriCommands.deleteSession called with:', sessionId, 'type:', typeof sessionId);
     console.log('typeof window:', typeof window);
-    console.log('typeof invoke:', typeof invoke);
     
     if (typeof window === 'undefined') {
       console.log('Window is undefined, returning false');
@@ -68,19 +105,19 @@ export const tauriCommands = {
     }
     
     try {
-      console.log('About to call invoke with command: delete_session');
+      console.log('About to call safeInvoke with command: delete_session');
       console.log('Parameters:', { sessionId: sessionId });
       
-      const result = await invoke('delete_session', { sessionId });
+      const result = await safeInvoke('delete_session', { sessionId });
       
-      console.log('invoke call completed successfully');
+      console.log('safeInvoke call completed successfully');
       console.log('delete_session command result:', result, 'type:', typeof result);
       console.log('=== TAURI COMMAND DELETE SESSION END ===');
       
       return result as boolean;
     } catch (error) {
       console.error('=== TAURI COMMAND DELETE SESSION ERROR ===');
-      console.error('Error in delete_session invoke:', error);
+      console.error('Error in delete_session safeInvoke:', error);
       console.error('Error type:', typeof error);
       console.error('Error constructor:', error?.constructor?.name);
       
@@ -105,29 +142,37 @@ export const tauriCommands = {
     recallScore?: number
   ): Promise<Message> {
     if (typeof window === 'undefined') throw new Error('Messages not available in SSR');
-    return await invoke('save_message', { 
-      session_id: sessionId, 
-      role, 
-      content, 
-      embedding, 
-      recall_score: recallScore 
-    });
+    console.log('saveMessage called with:', { sessionId, role, content });
+    // Pass parameters wrapped in params object to match SaveMessageParams struct
+    return await safeInvoke('save_message', { 
+      params: {
+        sessionId,
+        role, 
+        content, 
+        embedding, 
+        recallScore 
+      }
+    }) as Message;
   },
 
   async getRecentMessages(sessionId: number, limit?: number): Promise<Message[]> {
     if (typeof window === 'undefined') return [];
-    return await invoke('get_recent_messages', { session_id: sessionId, limit });
+    console.log('getRecentMessages called with:', { sessionId, limit });
+    // Pass parameters wrapped in params object to match GetMessagesParams struct
+    return await safeInvoke('get_recent_messages', { 
+      params: { sessionId, limit }
+    }) as Message[];
   },
 
   async deleteMessage(messageId: number): Promise<boolean> {
     if (typeof window === 'undefined') return false;
-    return await invoke('delete_message', { message_id: messageId });
+    return await safeInvoke('delete_message', { message_id: messageId }) as boolean;
   },
 
   // Database commands
   async initDatabase(databasePath?: string): Promise<string> {
     if (typeof window === 'undefined') return 'Database not available in SSR';
-    return await invoke('init_database', { database_path: databasePath });
+    return await safeInvoke('init_database', { database_path: databasePath }) as string;
   },
 
   async clearAllMemory(): Promise<string> {
@@ -135,14 +180,14 @@ export const tauriCommands = {
     if (typeof window === 'undefined') throw new Error('Clear all memory not available in SSR');
     
     try {
-      console.log('About to call invoke with command: clear_all_memory');
-      const result = await invoke('clear_all_memory');
+      console.log('About to call safeInvoke with command: clear_all_memory');
+      const result = await safeInvoke('clear_all_memory');
       console.log('clear_all_memory command result:', result);
       console.log('=== TAURI COMMAND CLEAR ALL MEMORY END ===');
       return result as string;
     } catch (error) {
       console.error('=== TAURI COMMAND CLEAR ALL MEMORY ERROR ===');
-      console.error('Error in clear_all_memory invoke:', error);
+      console.error('Error in clear_all_memory safeInvoke:', error);
       console.error('=== TAURI COMMAND CLEAR ALL MEMORY ERROR END ===');
       throw error;
     }
@@ -197,67 +242,33 @@ export const notificationUtils = {
   }
 };
 
-// Check if running in Tauri
-export const isTauri = () => {
-  try {
-    if (typeof window !== 'undefined') {
-      const w = window as any;
-      
-      // For Tauri v2, the most reliable method is checking if invoke function is available
-      // In Tauri v2, the globals are different than v1
-      
-      // Method 1: Direct function check
-      const hasInvokeFunction = typeof invoke === 'function';
-      
-      // Method 2: Check for Tauri-specific window properties
-      const hasTauriGlobals = typeof w.__TAURI__ !== 'undefined' || 
-                             typeof w.__TAURI_INTERNALS__ !== 'undefined' ||
-                             typeof w.tauri !== 'undefined';
-      
-      // Method 3: Check user agent
-      const userAgentHasTauri = navigator?.userAgent?.includes('Tauri') || false;
-      
-      // Method 4: Try to detect if we're in a webview (common in Tauri)
-      const isWebView = navigator?.userAgent?.includes('WebView') || false;
-      
-      // Log everything for debugging
-      console.debug('[isTauri] Detection details:', {
-        hasInvokeFunction,
-        hasTauriGlobals,
-        userAgentHasTauri,
-        isWebView,
-        invoke: typeof invoke,
-        userAgent: navigator?.userAgent,
-        windowKeys: Object.keys(window).filter(k => k.toLowerCase().includes('tauri'))
-      });
-      
-      // In Tauri v2, the primary indicator should be the availability of the invoke function
-      const isTauriEnv = hasInvokeFunction || hasTauriGlobals;
-      
-      console.debug('[isTauri] Final result:', isTauriEnv);
-      
-      return isTauriEnv;
-    }
-  } catch (error) {
-    console.debug('[isTauri] Detection error:', error);
-  }
-  
-  return false;
-};
-
 // Test function to verify Tauri is working
 export const testTauriConnection = async (): Promise<boolean> => {
   try {
     console.log('[testTauriConnection] Testing Tauri connection...');
-    console.log('[testTauriConnection] typeof invoke:', typeof invoke);
     
-    if (typeof invoke === 'function') {
-      // Try to call a simple command that should always exist
-      const result = await invoke('get_database_path');
-      console.log('[testTauriConnection] Successfully called get_database_path:', result);
-      return true;
-    } else {
-      console.log('[testTauriConnection] invoke is not a function');
+    // First check if we're even in a Tauri environment
+    if (!isTauri()) {
+      console.log('[testTauriConnection] Not in Tauri environment');
+      return false;
+    }
+    
+    // Try to dynamically import and test invoke
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      console.log('[testTauriConnection] typeof invoke:', typeof invoke);
+      
+      if (typeof invoke === 'function') {
+        // Try to call a simple command that should always exist
+        const result = await safeInvoke('get_database_path');
+        console.log('[testTauriConnection] Successfully called get_database_path:', result);
+        return true;
+      } else {
+        console.log('[testTauriConnection] invoke is not a function');
+        return false;
+      }
+    } catch (invokeError) {
+      console.error('[testTauriConnection] Error accessing invoke:', invokeError);
       return false;
     }
   } catch (error) {

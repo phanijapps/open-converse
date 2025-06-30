@@ -66,18 +66,21 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="What's on your mind? (⌘+Enter to send)"
-              px={{ base: 2, sm: 3, md: 6 }}
-              py={{ base: 2, sm: 3, md: 4 }}
+              px={{ base: 3, sm: 4, md: 6 }}
+              py={{ base: 3, sm: 4, md: 4 }}
               borderRadius={{ base: "lg", md: "2xl" }}
               border="2px solid"
               borderColor="gray.200"
               bg="gray.50"
-              fontSize={{ base: "sm", sm: "md", md: "lg" }}
+              fontSize="lg"
+              fontWeight="normal"
+              lineHeight="base"
               minHeight={{ base: "56px", sm: "64px", md: "72px" }}
               maxHeight={{ base: "90px", sm: "100px", md: "120px" }}
               resize="none"
               rows={2}
               width="100%"
+              className="message-input"
               _hover={{
                 borderColor: 'blue.300',
                 bg: 'white',
@@ -90,8 +93,8 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend }) => {
               }}
               _placeholder={{
                 color: 'gray.500',
-                fontWeight: '400',
-                fontSize: { base: "xs", sm: "sm", md: "md" }
+                fontWeight: 'normal',
+                fontSize: "md"
               }}
               transition="all 0.2s ease"
             />

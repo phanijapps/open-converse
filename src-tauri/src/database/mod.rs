@@ -45,6 +45,7 @@ pub trait MemoryRepo {
     // Session operations
     async fn create_session(&self, session: CreateSession) -> Result<Session>;
     async fn get_sessions(&self) -> Result<Vec<Session>>;
+    async fn get_session_by_id(&self, session_id: i64) -> Result<Session>;
     async fn delete_session(&self, session_id: i64) -> Result<bool>;
 
     // Message operations

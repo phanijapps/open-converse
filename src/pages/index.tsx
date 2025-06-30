@@ -1,18 +1,38 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Box, Flex, IconButton } from '@chakra-ui/react';
-import { Menu } from 'lucide-react';
+import { Box, Flex } from '@chakra-ui/react';
 import { Sidebar, type Conversation } from '../components/navigation';
 import { ChatStream } from '../components/chat';
 import { MessageInput } from '../components/chat';
 import { WelcomeScreen } from '../components/layout';
 import useSessions from '@/hooks/useSessions';
-import type { ChatMessage } from '@shared/types';
+import useSessionMessages from '@/hooks/useSessionMessages';
+import { AgentFactory } from '@/agents';
+import { readSettings } from '@/utils/settings';
+import { chatMessageToCreateMessage, agentSessionManager } from '@shared/langchain-adapters';
+import { tauriCommands } from '@/utils/tauri';
+import type { ChatMessage, SettingsData } from '@shared/types';
 
 export default function Home() {
   const { sessions, loading, createSession } = useSessions();
   const [activeId, setActiveId] = useState<string>(''); // Start with no active session
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
+  const { messages, loading: messagesLoading, addMessage, loadMessages } = useSessionMessages();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Default expanded on desktop
+  const [settings, setSettings] = useState<SettingsData | null>(null);
+  const [isAgentConfigured, setIsAgentConfigured] = useState(false);
+
+  // Load settings on component mount
+  useEffect(() => {
+    const loadAppSettings = async () => {
+      try {
+        const currentSettings = await readSettings();
+        setSettings(currentSettings);
+        setIsAgentConfigured(AgentFactory.validateSettings(currentSettings));
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      }
+    };
+    loadAppSettings();
+  }, []);
 
   // Transform sessions to conversations format
   const conversations = useMemo((): Conversation[] => {
@@ -29,20 +49,41 @@ export default function Home() {
     }
   }, [sessions, activeId]);
 
+  // Load messages when active session changes
+  useEffect(() => {
+    if (activeId) {
+      const sessionId = parseInt(activeId);
+      console.log('Loading messages for session:', sessionId, 'activeId:', activeId);
+      loadMessages(sessionId);
+    }
+  }, [activeId, loadMessages]);
+
   const handleNewChat = async () => {
     const timestamp = new Date().toLocaleString();
     const newSession = await createSession(`New Chat - ${timestamp}`);
     if (newSession) {
       setActiveId(newSession.id.toString());
-      // Initialize empty messages for the new session
-      setMessages(prev => ({
-        ...prev,
-        [newSession.id.toString()]: [],
-      }));
+      // Messages will be loaded automatically by the useEffect above
     }
   };
 
-  const handleSend = (msg: string) => {
+  const handleSend = async (msg: string) => {
+    // Create a session if none exists
+    let currentSessionId = activeId;
+    if (!currentSessionId) {
+      const timestamp = new Date().toLocaleString();
+      const newSession = await createSession(`New Chat - ${timestamp}`);
+      if (newSession) {
+        currentSessionId = newSession.id.toString();
+        setActiveId(currentSessionId);
+        // Load messages for the new session
+        await loadMessages(newSession.id);
+      } else {
+        console.error('Failed to create session');
+        return;
+      }
+    }
+
     const newUserMessage: ChatMessage = { 
       id: Date.now().toString(), 
       sender: 'user', 
@@ -50,42 +91,67 @@ export default function Home() {
       timestamp: Date.now() 
     };
     
-    // Add user message immediately
-    setMessages(prev => ({
-      ...prev,
-      [activeId]: [
-        ...(prev[activeId] || []),
-        newUserMessage,
-      ],
-    }));
+    // Add user message to database and local state
+    const sessionIdNum = parseInt(currentSessionId);
+    await addMessage(newUserMessage, sessionIdNum);
 
-    // Simulate AI thinking time and then respond
-    setTimeout(() => {
-      const aiResponses = [
-        "That's a great question! Let me think about that for a moment.",
-        "I understand what you're asking. Here's my perspective on that topic.",
-        "Thanks for sharing that with me! I'd be happy to help.",
-        "That's an interesting point. Let me provide you with some insights.",
-        "I appreciate you bringing this up. Here's what I think about it.",
-      ];
-      
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
-      
-      const newAiMessage: ChatMessage = { 
-        id: (Date.now() + 1).toString(), 
-        sender: 'ai', 
-        content: randomResponse, 
-        timestamp: Date.now() 
-      };
+    // Use agent system if configured, otherwise fallback to mock response
+    if (isAgentConfigured && settings && currentSessionId) {
+      try {
+        // Get session context for agent (includes historical messages)
+        const sessionId = parseInt(currentSessionId);
+        const agentContext = await agentSessionManager.prepareAgentContext(sessionId, msg, tauriCommands);
+        
+        // Create and use agent with full context
+        const agent = AgentFactory.createAgent('general', settings);
+        const aiResponse = await agent.sendMessage(msg, {
+          sessionContext: agentContext.session,
+          messageHistory: agentContext.messages,
+        });
+        
+        const newAiMessage: ChatMessage = { 
+          id: (Date.now() + 1).toString(), 
+          sender: 'ai', 
+          content: aiResponse, 
+          timestamp: Date.now() 
+        };
 
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: [
-          ...prev[activeId],
-          newAiMessage,
-        ],
-      }));
-    }, 1000 + Math.random() * 2000); // Random delay between 1-3 seconds
+        // Add AI response to database and local state
+        await addMessage(newAiMessage, sessionIdNum);
+      } catch (error) {
+        console.error('Agent error:', error);
+        
+        // Fallback to error message
+        const errorMessage: ChatMessage = { 
+          id: (Date.now() + 1).toString(), 
+          sender: 'ai', 
+          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your API configuration in settings.`, 
+          timestamp: Date.now() 
+        };
+
+        await addMessage(errorMessage, sessionIdNum);
+      }
+    } else {
+      // Fallback to mock response if agent system is not configured
+      setTimeout(async () => {
+        const aiResponses = [
+          "I'm not fully configured yet. Please set up your AI provider in the agent-test page or settings.",
+          "To enable AI responses, please configure an API key in the settings.",
+          "I'm running in demo mode. Visit /agent-test to configure a real AI provider.",
+        ];
+        
+        const mockResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+        
+        const newAiMessage: ChatMessage = { 
+          id: (Date.now() + 1).toString(), 
+          sender: 'ai', 
+          content: mockResponse, 
+          timestamp: Date.now() 
+        };
+
+        await addMessage(newAiMessage, sessionIdNum);
+      }, 1000);
+    }
   };
 
   const handleStartChat = () => {
@@ -96,7 +162,7 @@ export default function Home() {
     }
   };
 
-  const currentMessages = messages[activeId] || [];
+  const currentMessages = messages;
   const hasMessages = currentMessages.length > 0;
 
   // Backgrounds for each conversation (session)
@@ -108,85 +174,38 @@ export default function Home() {
   const currentBackground = backgrounds[activeId] || backgrounds.default;
 
   return (
-    <Flex h="100vh" w="100vw" bg="gray.100" overflow="hidden" position="relative">
-      <Box 
-        display="block"
-        flexShrink={0}
-      >
-        <Sidebar
-          conversations={conversations}
-          activeId={activeId}
-          onSelect={setActiveId}
-          onNewChat={handleNewChat}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        />
-      </Box>
+    <Flex h="100vh" bg="gray.100">
+      <Sidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={(id) => {
+          setActiveId(id);
+          // Messages will be loaded automatically by the useEffect
+        }}
+        onNewChat={handleNewChat}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
       <Box 
         flex={1} 
         display="flex" 
         flexDirection="column" 
         bgGradient={currentBackground}
         transition="background 0.3s ease"
-        minWidth={0}
-        width="100%"
-        overflow="hidden"
-        position="relative"
-        height="100vh"
       >
-        {        /* Mobile Menu Button */}
-        <IconButton
-          aria-label="Open menu"
-          position="absolute"
-          top={4}
-          left={4}
-          zIndex={1001}
-          size="sm"
-          variant="solid"
-          bg="white"
-          color="gray.700"
-          boxShadow="lg"
-          borderRadius="full"
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          display={{ base: "flex", md: "none" }}
-          _hover={{
-            bg: "gray.50"
-          }}
-        >
-          <Menu size={20} />
-        </IconButton>
-
-        {/* Mobile Overlay */}
-        {!isSidebarCollapsed && (
-          <Box
-            position="fixed"
-            top={0}
-            left={0}
-            w="100vw"
-            h="100vh"
-            bg="blackAlpha.600"
-            zIndex={999}
-            display={{ base: "block", md: "none" }}
-            onClick={() => setIsSidebarCollapsed(true)}
-          />
-        )}
         {hasMessages ? (
           <>
-            <Box flex={1} overflow="hidden" height="100%" minHeight={0}>
+            <Box flex={1} overflow="hidden">
               <ChatStream messages={currentMessages} />
             </Box>
-            <Box flexShrink={0}>
-              <MessageInput onSend={handleSend} />
-            </Box>
+            <MessageInput onSend={handleSend} />
           </>
         ) : (
           <>
-            <Box flex={1} overflow="hidden" height="100%" minHeight={0}>
+            <Box flex={1}>
               <WelcomeScreen onNewChat={handleNewChat} />
             </Box>
-            <Box flexShrink={0}>
-              <MessageInput onSend={handleSend} />
-            </Box>
+            <MessageInput onSend={handleSend} />
           </>
         )}
       </Box>

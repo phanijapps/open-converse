@@ -140,11 +140,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed ? (
           <HStack justify="space-between" align="center" w="full">
             <Text 
-              fontSize="24px" 
-              fontWeight="500" 
+              fontSize="2xl" 
+              fontWeight="medium" 
               color="gray.700"
               letterSpacing="0.25em"
-              fontFamily="Inter"
+              className="sidebar-title"
             >
               OpenConv
             </Text>
@@ -171,10 +171,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             position="relative"
           >
             <Text 
-              fontSize="18px" 
-              fontWeight="500" 
+              fontSize="lg" 
+              fontWeight="medium" 
               color="gray.700"
-              fontFamily="Inter"
+              className="sidebar-title"
               mr={1}
             >
               O
@@ -272,19 +272,19 @@ const Sidebar: React.FC<SidebarProps> = ({
           <Box px={{ base: 3, sm: 4, md: 6 }} py={4}>
             <HStack justify="space-between" align="center">
               <Text 
-                fontSize="12px" 
-                fontWeight="400" 
+                fontSize="xs" 
+                fontWeight="normal" 
                 color="#6A6969"
-                fontFamily="Inter"
+                className="sidebar-text"
               >
                 Your conversations
               </Text>
               <Text 
-                fontSize="14px" 
-                fontWeight="600" 
+                fontSize="sm" 
+                fontWeight="semibold" 
                 color="#5661F6"
                 cursor="pointer"
-                fontFamily="Inter"
+                className="sidebar-text"
                 onClick={handleClearAll}
                 _hover={{ textDecoration: 'underline' }}
               >
@@ -309,7 +309,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             {error && (
               <Box bg="red.50" border="1px" borderColor="red.200" borderRadius="md" p={3} mb={2}>
-                <Text fontSize="sm" color="red.600">{error}</Text>
+                <Text fontSize="sm" color="red.600" className="sidebar-text">{error}</Text>
               </Box>
             )}
             
@@ -321,10 +321,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             {!loading && !error && filteredConversations.length === 0 && sessions.length === 0 && conversations.length === 0 && (
               <Box textAlign="center" py={8}>
-                <Text fontSize="14px" color="gray.500" fontFamily="Inter">
+                <Text fontSize="sm" color="gray.500" className="sidebar-text">
                   No conversations yet
                 </Text>
-                <Text fontSize="12px" color="gray.400" fontFamily="Inter" mt={1}>
+                <Text fontSize="xs" color="gray.400" className="sidebar-text" mt={1}>
                   Start a new chat to begin
                 </Text>
               </Box>
@@ -332,10 +332,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             {!loading && !error && searchQuery && filteredConversations.length === 0 && (sessions.length > 0 || conversations.length > 0) && (
               <Box textAlign="center" py={8}>
-                <Text fontSize="14px" color="gray.500" fontFamily="Inter">
+                <Text fontSize="sm" color="gray.500" className="sidebar-text">
                   No conversations found
                 </Text>
-                <Text fontSize="12px" color="gray.400" fontFamily="Inter" mt={1}>
+                <Text fontSize="xs" color="gray.400" className="sidebar-text" mt={1}>
                   Try a different search term
                 </Text>
               </Box>

@@ -146,12 +146,7 @@ export default function SQLiteConfig({ onUpdateConfig }: SQLiteConfigProps) {
                   {databaseStats.session_count}
                 </Text>
               </HStack>
-              <HStack justify="space-between">
-                <Text fontSize="xs" color="blue.600">Conversations:</Text>
-                <Text fontSize="xs" color="blue.800" fontWeight="medium">
-                  {databaseStats.conversation_count}
-                </Text>
-              </HStack>
+
               <HStack justify="space-between">
                 <Text fontSize="xs" color="blue.600">Messages:</Text>
                 <Text fontSize="xs" color="blue.800" fontWeight="medium">
