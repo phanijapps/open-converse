@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import { Box, Flex, Text, HStack, IconButton } from '@chakra-ui/react';
+import { Box, Flex, Text, HStack, IconButton, Link } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, User } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import type { ChatMessage } from '@shared/types';
 
 const MotionFlex = motion(Flex);
@@ -138,14 +141,122 @@ const ChatStream: React.FC<ChatStreamProps> = ({ messages }) => {
                 )}
                 
                 <Box flex={1}>
-                  <Text 
+                  <Box 
                     lineHeight="tall"
                     fontSize="md"
                     fontWeight="normal"
-                    className={msg.sender === 'user' ? 'chat-message-user' : 'chat-message-ai'}
+                    className={`markdown-content ${msg.sender === 'user' ? 'chat-message-user' : 'chat-message-ai'}`}
+                    color={msg.sender === 'user' ? 'white' : 'gray.900'}
                   >
-                    {msg.content}
-                  </Text>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={{
+                        // Custom styling for markdown elements
+                        p: ({ children }) => (
+                          <Text mb={2} lineHeight="tall" color="inherit">
+                            {children}
+                          </Text>
+                        ),
+                        h1: ({ children }) => (
+                          <Text fontSize="xl" fontWeight="bold" mb={3} mt={2} color="inherit">
+                            {children}
+                          </Text>
+                        ),
+                        h2: ({ children }) => (
+                          <Text fontSize="lg" fontWeight="bold" mb={2} mt={2} color="inherit">
+                            {children}
+                          </Text>
+                        ),
+                        h3: ({ children }) => (
+                          <Text fontSize="md" fontWeight="bold" mb={2} mt={2} color="inherit">
+                            {children}
+                          </Text>
+                        ),
+                        ul: ({ children }) => (
+                          <Box as="ul" pl={4} mb={2} color="inherit">
+                            {children}
+                          </Box>
+                        ),
+                        ol: ({ children }) => (
+                          <Box as="ol" pl={4} mb={2} color="inherit">
+                            {children}
+                          </Box>
+                        ),
+                        li: ({ children }) => (
+                          <Box as="li" mb={1} color="inherit">
+                            {children}
+                          </Box>
+                        ),
+                        code: ({ children, className, ...props }: any) => {
+                          const inline = !className;
+                          return inline ? (
+                            <Text
+                              as="code"
+                              bg={msg.sender === 'user' ? 'rgba(255,255,255,0.2)' : 'gray.100'}
+                              px={1}
+                              py={0.5}
+                              borderRadius="sm"
+                              fontSize="sm"
+                              fontFamily="monospace"
+                            >
+                              {children}
+                            </Text>
+                          ) : (
+                            <Box
+                              as="pre"
+                              bg={msg.sender === 'user' ? 'rgba(255,255,255,0.1)' : 'gray.50'}
+                              p={3}
+                              borderRadius="md"
+                              overflow="auto"
+                              fontSize="sm"
+                              fontFamily="monospace"
+                              mb={2}
+                            >
+                              <Text as="code">{children}</Text>
+                            </Box>
+                          );
+                        },
+                        blockquote: ({ children }) => (
+                          <Box
+                            borderLeft="4px solid"
+                            borderColor={msg.sender === 'user' ? 'rgba(255,255,255,0.5)' : 'gray.300'}
+                            pl={4}
+                            ml={2}
+                            mb={2}
+                            fontStyle="italic"
+                            color="inherit"
+                          >
+                            {children}
+                          </Box>
+                        ),
+                        strong: ({ children }) => (
+                          <Text as="strong" fontWeight="bold" color="inherit">
+                            {children}
+                          </Text>
+                        ),
+                        em: ({ children }) => (
+                          <Text as="em" fontStyle="italic" color="inherit">
+                            {children}
+                          </Text>
+                        ),
+                        a: ({ children, href }: any) => (
+                          <Link 
+                            href={href}
+                            color={msg.sender === 'user' ? 'rgba(255,255,255,0.9)' : 'blue.500'}
+                            textDecoration="underline"
+                            _hover={{ opacity: 0.8 }}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {children}
+                          </Link>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </Box>
                   <HStack 
                     gap={2} 
                     mt={2} 
@@ -180,16 +291,16 @@ const ChatStream: React.FC<ChatStreamProps> = ({ messages }) => {
                     w="40px" 
                     h="40px" 
                     borderRadius="full" 
-                    bg="blue.100" 
+                    bg="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
                     display="flex" 
                     alignItems="center" 
                     justifyContent="center" 
-                    color="blue.700" 
+                    color="white" 
                     fontWeight="bold"
                     flexShrink={0}
                     fontSize="lg"
                   >
-                    U
+                    <User size={20} />
                   </Box>
                 )}
               </Flex>

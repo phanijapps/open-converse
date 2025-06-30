@@ -109,7 +109,7 @@ export class AgentSessionManager {
     
     return {
       session,
-      history: messagesToLangChain(messages.sort((a: any, b: any) => a.ts - b.ts)),
+      history: messagesToLangChain(messages), // Messages are now sorted chronologically in database query
     };
   }
 

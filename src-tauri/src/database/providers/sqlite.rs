@@ -216,8 +216,12 @@ impl MemoryRepo for SqliteProvider {
 
     async fn recent_messages(&self, session_id: i64, limit: Option<i64>) -> Result<Vec<Message>> {
         let query = match limit {
-            Some(limit) => format!("SELECT * FROM message WHERE session_id = {} ORDER BY ts DESC LIMIT {}", session_id, limit),
-            None => format!("SELECT * FROM message WHERE session_id = {} ORDER BY ts DESC", session_id),
+            // When limiting, we want the most recent messages, but returned in chronological order
+            Some(limit) => format!(
+                "SELECT * FROM (SELECT * FROM message WHERE session_id = {} ORDER BY ts DESC LIMIT {}) ORDER BY ts ASC", 
+                session_id, limit
+            ),
+            None => format!("SELECT * FROM message WHERE session_id = {} ORDER BY ts ASC", session_id),
         };
 
         let rows = sqlx::query(&query).fetch_all(&self.pool).await?;

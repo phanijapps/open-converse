@@ -1,3 +1,17 @@
+/* Import highlight.js theme for code syntax highlighting */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css');
+
+/* Import professional fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
+
+/* Professional font variables */
+:root {
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-secondary: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
+}
+
 /* Reset and base styles */
 * {
   box-sizing: border-box;
@@ -6,7 +20,7 @@
 }
 
 html, body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  font-family: var(--font-primary);
   font-size: 16px;
   line-height: 1.5;
   font-weight: 400;
@@ -20,6 +34,7 @@ html, body {
   -webkit-text-size-adjust: 100%;
   height: 100%;
   overflow: hidden;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 #__next {
@@ -61,17 +76,184 @@ html, body {
   font-weight: 400;
 }
 
-/* Sidebar text */
+/* Sidebar typography - Professional styling */
 .sidebar-text {
+  font-family: var(--font-primary);
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.43;
   font-weight: 400;
+  letter-spacing: -0.006em;
+  color: #64748b;
 }
 
 .sidebar-title {
-  font-size: 15px;
-  line-height: 1.4;
+  font-family: var(--font-secondary);
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #1e293b;
+}
+
+/* Sidebar conversation items */
+.sidebar-conversation {
+  font-family: var(--font-primary);
+  font-size: 14px;
+  line-height: 1.43;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  transition: all 0.15s ease;
+}
+
+.sidebar-conversation:hover {
   font-weight: 500;
+}
+
+.sidebar-conversation.active {
+  font-weight: 500;
+  color: #0f172a;
+}
+
+/* Sidebar section headers */
+.sidebar-section-header {
+  font-family: var(--font-primary);
+  font-size: 12px;
+  line-height: 1.33;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+/* Sidebar buttons */
+.sidebar-button {
+  font-family: var(--font-primary);
+  font-size: 14px;
+  line-height: 1.43;
+  font-weight: 500;
+  letter-spacing: -0.006em;
+}
+
+/* Sidebar search placeholder */
+.sidebar-search::placeholder {
+  font-family: var(--font-primary);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+}
+
+/* Professional typography for sidebar labels */
+.sidebar-label {
+  font-family: var(--font-primary);
+  font-size: 11px;
+  line-height: 1.27;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+/* Sidebar navigation items */
+.sidebar-nav-item {
+  font-family: var(--font-primary);
+  font-size: 14px;
+  line-height: 1.43;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.sidebar-nav-item:hover {
+  font-weight: 500;
+  color: #334155;
+}
+
+.sidebar-nav-item.active {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Professional typography improvements */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-secondary);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #0f172a;
+}
+
+/* Improve text contrast and readability */
+strong, b {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Professional button typography */
+button {
+  font-family: var(--font-primary);
+  font-weight: 500;
+  letter-spacing: -0.006em;
+}
+
+/* Input field improvements */
+input, textarea {
+  font-family: var(--font-primary);
+  font-weight: 400;
+  letter-spacing: -0.006em;
+}
+
+/* Professional link styling */
+a {
+  font-family: var(--font-primary);
+  font-weight: 500;
+  text-decoration: none;
+  color: #3b82f6;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: #1d4ed8;
+}
+
+/* Code and monospace elements */
+code, pre, kbd {
+  font-family: var(--font-mono);
+  font-feature-settings: 'liga' 0;
+}
+
+/* Professional spacing and line heights */
+p {
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+/* Sidebar specific improvements */
+.sidebar-conversation {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-conversation:hover {
+  transform: translateX(2px);
+}
+
+/* Enhanced focus states for accessibility */
+.sidebar-nav-item:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Professional shadows for depth */
+.sidebar-elevated {
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.sidebar-elevated-hover:hover {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 /* Smooth scrolling for chat stream */
@@ -176,4 +358,89 @@ button, input, optgroup, select, textarea {
   font-family: inherit;
   font-feature-settings: inherit;
   font-variation-settings: inherit;
+}
+
+/* Syntax highlighting for code blocks */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* Markdown styling improvements */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  font-family: var(--font-secondary);
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-content p {
+  margin-bottom: 1rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-content code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.markdown-content pre {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.markdown-content blockquote {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 4px solid #e2e8f0;
+  font-style: italic;
+  color: #64748b;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+
+/* Chat-specific markdown overrides */
+.chat-message-ai .markdown-content blockquote {
+  border-left-color: #cbd5e1;
+}
+
+.chat-message-user .markdown-content blockquote {
+  border-left-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.9);
 }

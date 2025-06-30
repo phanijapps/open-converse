@@ -1,26 +1,63 @@
 import React, { useState } from 'react';
 import { Box, Container, Text, Badge, HStack, VStack } from '@chakra-ui/react';
-import { ChatMessageInput } from '@/components/chat';
+import { ChatMessageInput, ChatStream } from '@/components/chat';
 import type { AgentType } from '@/agents';
-
-interface ChatMessage {
-  id: string;
-  content: string;
-  isUser: boolean;
-  timestamp: Date;
-  agentType?: AgentType;
-}
+import type { ChatMessage } from '@shared/types';
 
 const ChatDemo: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    // Sample markdown messages to demonstrate functionality
+    {
+      id: '1',
+      content: `# Welcome to the Markdown Chat Demo! 🎉
+
+This is a **demonstration** of markdown rendering in chat messages. Here are some features:
+
+## Text Formatting
+- **Bold text**
+- *Italic text*
+- \`inline code\`
+- ~~strikethrough~~ (if supported)
+
+## Code Blocks
+\`\`\`javascript
+function greet(name) {
+  console.log(\`Hello, \${name}!\`);
+  return \`Welcome to the chat, \${name}!\`;
+}
+
+greet('User');
+\`\`\`
+
+## Lists
+1. First item
+2. Second item
+3. Third item
+
+### Bullet points:
+- Feature A
+- Feature B  
+- Feature C
+
+## Links and More
+Check out [this link](https://example.com) for more information.
+
+> This is a blockquote with some important information
+> that spans multiple lines.
+
+Happy chatting! 🚀`,
+      sender: 'ai',
+      timestamp: Date.now() - 10000,
+    }
+  ]);
   const [currentSessionId] = useState<number>(1); // Mock session ID
 
   const handleMessage = (content: string, isUser: boolean) => {
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       content,
-      isUser,
-      timestamp: new Date(),
+      sender: isUser ? 'user' : 'ai',
+      timestamp: Date.now(),
     };
     
     setMessages(prev => [...prev, newMessage]);
@@ -36,10 +73,10 @@ const ChatDemo: React.FC = () => {
       <VStack gap={6} align="stretch">
         <Box textAlign="center">
           <Text fontSize="2xl" fontWeight="bold" mb={2}>
-            LangChain.js Chat Demo
+            Professional Chat with Markdown Support
           </Text>
           <Text color="gray.600">
-            Test the new modular agent system with different AI assistants
+            Enhanced chat experience with markdown rendering, professional fonts, and improved UI
           </Text>
         </Box>
 
@@ -48,53 +85,13 @@ const ChatDemo: React.FC = () => {
         {/* Chat Messages */}
         <Box 
           height="500px" 
-          overflowY="auto" 
           border="1px solid" 
           borderColor="gray.200" 
           borderRadius="lg"
-          p={4}
           bg="gray.50"
+          overflow="hidden"
         >
-          <VStack gap={4} align="stretch">
-            {messages.length === 0 ? (
-              <Text color="gray.500" textAlign="center" py={8}>
-                Start a conversation with the AI assistant...
-              </Text>
-            ) : (
-              messages.map((message) => (
-                <Box
-                  key={message.id}
-                  alignSelf={message.isUser ? 'flex-end' : 'flex-start'}
-                  maxW="80%"
-                >
-                  <Box
-                    bg={message.isUser ? 'blue.500' : 'white'}
-                    color={message.isUser ? 'white' : 'gray.800'}
-                    px={4}
-                    py={3}
-                    borderRadius="lg"
-                    boxShadow="sm"
-                    border={message.isUser ? 'none' : '1px solid'}
-                    borderColor={message.isUser ? 'transparent' : 'gray.200'}
-                  >
-                    <Text fontSize="sm" whiteSpace="pre-wrap">
-                      {message.content}
-                    </Text>
-                  </Box>
-                  <HStack justify={message.isUser ? 'flex-end' : 'flex-start'} mt={1}>
-                    <Text fontSize="xs" color="gray.500">
-                      {message.timestamp.toLocaleTimeString()}
-                    </Text>
-                    {!message.isUser && (
-                      <Badge size="sm" colorScheme="blue">
-                        AI Assistant
-                      </Badge>
-                    )}
-                  </HStack>
-                </Box>
-              ))
-            )}
-          </VStack>
+          <ChatStream messages={messages} />
         </Box>
 
         {/* Chat Input */}
@@ -112,6 +109,9 @@ const ChatDemo: React.FC = () => {
           </Text>
           <VStack align="start" gap={1}>
             <Text fontSize="sm" color="blue.700">
+              • **Markdown support**: Use **bold**, *italics*, `code`, and more!
+            </Text>
+            <Text fontSize="sm" color="blue.700">
               • Use ⌘+Enter (Mac) or Ctrl+Enter (Windows) to send messages quickly
             </Text>
             <Text fontSize="sm" color="blue.700">
@@ -121,7 +121,7 @@ const ChatDemo: React.FC = () => {
               • Each assistant has different specialties (General, Code, Research, Creative)
             </Text>
             <Text fontSize="sm" color="blue.700">
-              • Currently configured with OpenRouter + DeepSeek Chat v3
+              • Professional fonts: Inter and Manrope for better readability
             </Text>
           </VStack>
         </Box>

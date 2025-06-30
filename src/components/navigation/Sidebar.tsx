@@ -145,6 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               color="gray.700"
               letterSpacing="0.25em"
               className="sidebar-title"
+              fontFamily="var(--font-secondary)"
             >
               OpenConv
             </Text>
@@ -175,6 +176,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               fontWeight="medium" 
               color="gray.700"
               className="sidebar-title"
+              fontFamily="var(--font-secondary)"
               mr={1}
             >
               O
@@ -210,7 +212,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 color="white"
                 borderRadius="25px"
                 fontSize="16px"
-                fontWeight="400"
+                fontWeight="500"
+                fontFamily="var(--font-primary)"
+                className="sidebar-button"
                 onClick={handleNewChat}
                 disabled={loading}
                 _hover={{
@@ -254,6 +258,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 border="none"
                 color="white"
                 fontSize="16px"
+                fontFamily="var(--font-primary)"
+                className="sidebar-search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 _placeholder={{ 
@@ -273,18 +279,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             <HStack justify="space-between" align="center">
               <Text 
                 fontSize="xs" 
-                fontWeight="normal" 
+                fontWeight="semibold" 
                 color="#6A6969"
-                className="sidebar-text"
+                className="sidebar-label"
+                fontFamily="var(--font-primary)"
               >
                 Your conversations
               </Text>
               <Text 
                 fontSize="sm" 
-                fontWeight="semibold" 
+                fontWeight="medium" 
                 color="#5661F6"
                 cursor="pointer"
-                className="sidebar-text"
+                className="sidebar-nav-item"
+                fontFamily="var(--font-primary)"
                 onClick={handleClearAll}
                 _hover={{ textDecoration: 'underline' }}
               >
@@ -309,7 +317,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             {error && (
               <Box bg="red.50" border="1px" borderColor="red.200" borderRadius="md" p={3} mb={2}>
-                <Text fontSize="sm" color="red.600" className="sidebar-text">{error}</Text>
+                <Text fontSize="sm" color="red.600" className="sidebar-text" fontFamily="var(--font-primary)">{error}</Text>
               </Box>
             )}
             
@@ -321,10 +329,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             {!loading && !error && filteredConversations.length === 0 && sessions.length === 0 && conversations.length === 0 && (
               <Box textAlign="center" py={8}>
-                <Text fontSize="sm" color="gray.500" className="sidebar-text">
+                <Text fontSize="sm" color="gray.500" className="sidebar-text" fontFamily="var(--font-primary)">
                   No conversations yet
                 </Text>
-                <Text fontSize="xs" color="gray.400" className="sidebar-text" mt={1}>
+                <Text fontSize="xs" color="gray.400" className="sidebar-text" fontFamily="var(--font-primary)" mt={1}>
                   Start a new chat to begin
                 </Text>
               </Box>
@@ -332,10 +340,10 @@ const Sidebar: React.FC<SidebarProps> = ({
             
             {!loading && !error && searchQuery && filteredConversations.length === 0 && (sessions.length > 0 || conversations.length > 0) && (
               <Box textAlign="center" py={8}>
-                <Text fontSize="sm" color="gray.500" className="sidebar-text">
+                <Text fontSize="sm" color="gray.500" className="sidebar-text" fontFamily="var(--font-primary)">
                   No conversations found
                 </Text>
-                <Text fontSize="xs" color="gray.400" className="sidebar-text" mt={1}>
+                <Text fontSize="xs" color="gray.400" className="sidebar-text" fontFamily="var(--font-primary)" mt={1}>
                   Try a different search term
                 </Text>
               </Box>
@@ -371,7 +379,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       fontSize="16px"
                       fontWeight="400"
                       color={activeId === conv.id ? "#02489B" : "#475569"}
-                      fontFamily="Inter"
+                      fontFamily="var(--font-primary)"
+                      className={`sidebar-conversation ${activeId === conv.id ? 'active' : ''}`}
                       lineHeight="1.5"
                       flex={1}
                       overflow="hidden"
@@ -414,9 +423,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           <Box px={{ base: 3, sm: 4, md: 6 }} py={2} flexShrink={0}>
             <Text 
               fontSize="14px" 
-              fontWeight="500" 
+              fontWeight="600" 
               color="#6A6969"
-              fontFamily="Mier A"
+              fontFamily="var(--font-primary)"
+              className="sidebar-section-header"
             >
               Last 7 Days
             </Text>
@@ -436,7 +446,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 fontSize="13px"
                 fontWeight="500"
                 color="#667eea"
-                fontFamily="Inter"
+                fontFamily="var(--font-primary)"
+                className="sidebar-text"
                 lineHeight="1.4"
               >
                 🎨✨ Vibe Coded using GitHub Copilot and Figma Community Design 🚀😎
