@@ -2,6 +2,7 @@ import type { ChatAgent, AgentType } from './types';
 import { AgentFactory } from './factory';
 import { readSettings } from '@/utils/settings';
 import type { SettingsData } from '@shared/types';
+import { MessageMemoryProvider } from '../../../shared/memory';
 
 /**
  * Session-based agent manager for maintaining agent state across conversations
@@ -11,6 +12,7 @@ export class AgentManager {
   private static instance: AgentManager;
   private sessionAgents: Map<number, { agent: ChatAgent; type: AgentType }> = new Map();
   private settings: SettingsData | null = null;
+  private memoryProvider = new MessageMemoryProvider();
   
   private constructor() {}
   
@@ -117,5 +119,12 @@ export class AgentManager {
   async validateSettings(): Promise<boolean> {
     const settings = await this.getSettings();
     return AgentFactory.validateSettings(settings);
+  }
+
+  /**
+   * Get chat history for a session using the memory provider
+   */
+  async getSessionHistory(sessionId: number) {
+    return this.memoryProvider.getMemory(sessionId);
   }
 }

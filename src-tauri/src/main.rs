@@ -112,6 +112,7 @@ pub fn run() {
             // Session commands
             database::commands::create_session,
             database::commands::get_sessions,
+            database::commands::get_session_by_id,
             database::commands::delete_session,
             // Message commands
             database::commands::save_message,

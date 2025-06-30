@@ -2,6 +2,13 @@
 
 A modular, extensible AI agent system built with LangChain.js that supports multiple agent types and session-based management.
 
+## 🧠 Memory Integration (Tauri, Modular, Pluggable)
+
+- All agent and chat memory operations use the `MemoryProvider` interface (see `shared/memory.ts`).
+- The default implementation is `MessageMemoryProvider`, which uses the Message table for chat context/history.
+- To add new memory backends, implement the interface, add Tauri commands, and wire up new API endpoints.
+- No direct DB or Tauri calls from agent or client code—everything is abstracted and pluggable.
+
 ## 🏗️ Architecture
 
 ```

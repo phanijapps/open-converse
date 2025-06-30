@@ -5,6 +5,7 @@
 
 use crate::database::{models::*, DatabaseConfig, DatabaseManager, DatabaseProvider};
 use crate::connectors::Connector;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;
@@ -12,7 +13,30 @@ use tokio::sync::Mutex;
 /// Application state containing the database manager
 pub type DatabaseState = Arc<Mutex<Option<DatabaseManager>>>;
 
-/// Initialize the database with the given configuration
+// Parameter structs for Tauri commands
+#[derive(Deserialize)]
+pub struct SaveMessageParams {
+    #[serde(rename = "sessionId")]
+    pub session_id: i64,
+    pub role: String,
+    pub content: String,
+    pub embedding: Option<Vec<u8>>,
+    #[serde(rename = "recallScore")]
+    pub recall_score: Option<f64>,
+}
+
+#[derive(Deserialize)]
+pub struct GetMessagesParams {
+    #[serde(rename = "sessionId")]
+    pub session_id: i64,
+    pub limit: Option<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct GetSessionParams {
+    #[serde(rename = "sessionId")]
+    pub session_id: i64,
+}
 #[tauri::command]
 pub async fn init_database(
     database_path: Option<String>,
@@ -131,6 +155,23 @@ pub async fn get_sessions(state: State<'_, DatabaseState>) -> Result<Vec<Session
 }
 
 #[tauri::command]
+pub async fn get_session_by_id(
+    params: GetSessionParams,
+    state: State<'_, DatabaseState>,
+) -> Result<Session, String> {
+    let state_guard = state.lock().await;
+    let manager = state_guard
+        .as_ref()
+        .ok_or("Database not initialized")?;
+
+    manager
+        .memory_repo()
+        .get_session_by_id(params.session_id)
+        .await
+        .map_err(|e| format!("Failed to get session: {}", e))
+}
+
+#[tauri::command]
 pub async fn delete_session(
     session_id: i64,
     state: State<'_, DatabaseState>,
@@ -162,11 +203,7 @@ pub async fn delete_session(
 
 #[tauri::command]
 pub async fn save_message(
-    session_id: i64,
-    role: String,
-    content: String,
-    embedding: Option<Vec<u8>>,
-    recall_score: Option<f64>,
+    params: SaveMessageParams,
     state: State<'_, DatabaseState>,
 ) -> Result<Message, String> {
     let state_guard = state.lock().await;
@@ -175,11 +212,11 @@ pub async fn save_message(
         .ok_or("Database not initialized")?;
 
     let create_message = CreateMessage {
-        session_id,
-        role,
-        content,
-        embedding,
-        recall_score,
+        session_id: params.session_id,
+        role: params.role,
+        content: params.content,
+        embedding: params.embedding,
+        recall_score: params.recall_score,
     };
 
     manager
@@ -191,8 +228,7 @@ pub async fn save_message(
 
 #[tauri::command]
 pub async fn get_recent_messages(
-    session_id: i64,
-    limit: Option<i64>,
+    params: GetMessagesParams,
     state: State<'_, DatabaseState>,
 ) -> Result<Vec<Message>, String> {
     let state_guard = state.lock().await;
@@ -202,7 +238,7 @@ pub async fn get_recent_messages(
 
     manager
         .memory_repo()
-        .recent_messages(session_id, limit)
+        .recent_messages(params.session_id, params.limit)
         .await
         .map_err(|e| format!("Failed to get recent messages: {}", e))
 }

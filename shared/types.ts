@@ -2,7 +2,7 @@
 
 export interface ChatMessage {
   id: string;
-  sender: 'user' | 'ai';
+  sender: 'user' | 'ai' | 'system';
   content: string;
   timestamp: number;
 }

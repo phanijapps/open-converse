@@ -5,14 +5,17 @@ import { ChatStream } from '../components/chat';
 import { MessageInput } from '../components/chat';
 import { WelcomeScreen } from '../components/layout';
 import useSessions from '@/hooks/useSessions';
+import useSessionMessages from '@/hooks/useSessionMessages';
 import { AgentFactory } from '@/agents';
 import { readSettings } from '@/utils/settings';
+import { chatMessageToCreateMessage, agentSessionManager } from '@shared/langchain-adapters';
+import { tauriCommands } from '@/utils/tauri';
 import type { ChatMessage, SettingsData } from '@shared/types';
 
 export default function Home() {
   const { sessions, loading, createSession } = useSessions();
   const [activeId, setActiveId] = useState<string>(''); // Start with no active session
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({});
+  const { messages, loading: messagesLoading, addMessage, loadMessages } = useSessionMessages();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Default expanded on desktop
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [isAgentConfigured, setIsAgentConfigured] = useState(false);
@@ -46,20 +49,41 @@ export default function Home() {
     }
   }, [sessions, activeId]);
 
+  // Load messages when active session changes
+  useEffect(() => {
+    if (activeId) {
+      const sessionId = parseInt(activeId);
+      console.log('Loading messages for session:', sessionId, 'activeId:', activeId);
+      loadMessages(sessionId);
+    }
+  }, [activeId, loadMessages]);
+
   const handleNewChat = async () => {
     const timestamp = new Date().toLocaleString();
     const newSession = await createSession(`New Chat - ${timestamp}`);
     if (newSession) {
       setActiveId(newSession.id.toString());
-      // Initialize empty messages for the new session
-      setMessages(prev => ({
-        ...prev,
-        [newSession.id.toString()]: [],
-      }));
+      // Messages will be loaded automatically by the useEffect above
     }
   };
 
   const handleSend = async (msg: string) => {
+    // Create a session if none exists
+    let currentSessionId = activeId;
+    if (!currentSessionId) {
+      const timestamp = new Date().toLocaleString();
+      const newSession = await createSession(`New Chat - ${timestamp}`);
+      if (newSession) {
+        currentSessionId = newSession.id.toString();
+        setActiveId(currentSessionId);
+        // Load messages for the new session
+        await loadMessages(newSession.id);
+      } else {
+        console.error('Failed to create session');
+        return;
+      }
+    }
+
     const newUserMessage: ChatMessage = { 
       id: Date.now().toString(), 
       sender: 'user', 
@@ -67,21 +91,23 @@ export default function Home() {
       timestamp: Date.now() 
     };
     
-    // Add user message immediately
-    setMessages(prev => ({
-      ...prev,
-      [activeId]: [
-        ...(prev[activeId] || []),
-        newUserMessage,
-      ],
-    }));
+    // Add user message to database and local state
+    const sessionIdNum = parseInt(currentSessionId);
+    await addMessage(newUserMessage, sessionIdNum);
 
     // Use agent system if configured, otherwise fallback to mock response
-    if (isAgentConfigured && settings) {
+    if (isAgentConfigured && settings && currentSessionId) {
       try {
-        // Create and use agent
+        // Get session context for agent (includes historical messages)
+        const sessionId = parseInt(currentSessionId);
+        const agentContext = await agentSessionManager.prepareAgentContext(sessionId, msg, tauriCommands);
+        
+        // Create and use agent with full context
         const agent = AgentFactory.createAgent('general', settings);
-        const aiResponse = await agent.sendMessage(msg);
+        const aiResponse = await agent.sendMessage(msg, {
+          sessionContext: agentContext.session,
+          messageHistory: agentContext.messages,
+        });
         
         const newAiMessage: ChatMessage = { 
           id: (Date.now() + 1).toString(), 
@@ -90,13 +116,8 @@ export default function Home() {
           timestamp: Date.now() 
         };
 
-        setMessages(prev => ({
-          ...prev,
-          [activeId]: [
-            ...prev[activeId],
-            newAiMessage,
-          ],
-        }));
+        // Add AI response to database and local state
+        await addMessage(newAiMessage, sessionIdNum);
       } catch (error) {
         console.error('Agent error:', error);
         
@@ -108,17 +129,11 @@ export default function Home() {
           timestamp: Date.now() 
         };
 
-        setMessages(prev => ({
-          ...prev,
-          [activeId]: [
-            ...prev[activeId],
-            errorMessage,
-          ],
-        }));
+        await addMessage(errorMessage, sessionIdNum);
       }
     } else {
       // Fallback to mock response if agent system is not configured
-      setTimeout(() => {
+      setTimeout(async () => {
         const aiResponses = [
           "I'm not fully configured yet. Please set up your AI provider in the agent-test page or settings.",
           "To enable AI responses, please configure an API key in the settings.",
@@ -134,13 +149,7 @@ export default function Home() {
           timestamp: Date.now() 
         };
 
-        setMessages(prev => ({
-          ...prev,
-          [activeId]: [
-            ...prev[activeId],
-            newAiMessage,
-          ],
-        }));
+        await addMessage(newAiMessage, sessionIdNum);
       }, 1000);
     }
   };
@@ -153,7 +162,7 @@ export default function Home() {
     }
   };
 
-  const currentMessages = messages[activeId] || [];
+  const currentMessages = messages;
   const hasMessages = currentMessages.length > 0;
 
   // Backgrounds for each conversation (session)
@@ -169,7 +178,10 @@ export default function Home() {
       <Sidebar
         conversations={conversations}
         activeId={activeId}
-        onSelect={setActiveId}
+        onSelect={(id) => {
+          setActiveId(id);
+          // Messages will be loaded automatically by the useEffect
+        }}
         onNewChat={handleNewChat}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}

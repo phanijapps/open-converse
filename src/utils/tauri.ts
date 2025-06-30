@@ -85,6 +85,15 @@ export const tauriCommands = {
     return await safeInvoke('get_sessions') as Session[];
   },
 
+  async getSessionById(sessionId: number): Promise<Session> {
+    if (typeof window === 'undefined') throw new Error('Sessions not available in SSR');
+    console.log('getSessionById called with:', { sessionId });
+    // Pass parameters wrapped in params object to match GetSessionParams struct
+    return await safeInvoke('get_session_by_id', { 
+      params: { sessionId }
+    }) as Session;
+  },
+
   async deleteSession(sessionId: number): Promise<boolean> {
     console.log('=== TAURI COMMAND DELETE SESSION START ===');
     console.log('tauriCommands.deleteSession called with:', sessionId, 'type:', typeof sessionId);
@@ -133,18 +142,26 @@ export const tauriCommands = {
     recallScore?: number
   ): Promise<Message> {
     if (typeof window === 'undefined') throw new Error('Messages not available in SSR');
+    console.log('saveMessage called with:', { sessionId, role, content });
+    // Pass parameters wrapped in params object to match SaveMessageParams struct
     return await safeInvoke('save_message', { 
-      session_id: sessionId, 
-      role, 
-      content, 
-      embedding, 
-      recall_score: recallScore 
+      params: {
+        sessionId,
+        role, 
+        content, 
+        embedding, 
+        recallScore 
+      }
     }) as Message;
   },
 
   async getRecentMessages(sessionId: number, limit?: number): Promise<Message[]> {
     if (typeof window === 'undefined') return [];
-    return await safeInvoke('get_recent_messages', { session_id: sessionId, limit }) as Message[];
+    console.log('getRecentMessages called with:', { sessionId, limit });
+    // Pass parameters wrapped in params object to match GetMessagesParams struct
+    return await safeInvoke('get_recent_messages', { 
+      params: { sessionId, limit }
+    }) as Message[];
   },
 
   async deleteMessage(messageId: number): Promise<boolean> {
