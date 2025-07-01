@@ -191,7 +191,155 @@ export const tauriCommands = {
       console.error('=== TAURI COMMAND CLEAR ALL MEMORY ERROR END ===');
       throw error;
     }
-  }
+  },
+
+  // Agent Management Commands
+  async createAgent(config: {
+    name: string;
+    description: string;
+    agent_type: string;
+    environment_variables?: Record<string, string>;
+    requirements?: string[];
+    triggers?: string[];
+    data_connectors?: string[];
+    memory_limit_mb?: number;
+    timeout_seconds?: number;
+  }): Promise<string> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    return await safeInvoke('create_agent', { config }) as string;
+  },
+
+  async listAgents(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    agent_type: string;
+    status: string;
+    created_at: string;
+  }>> {
+    if (typeof window === 'undefined') return [];
+    return await safeInvoke('list_agents') as Array<any>;
+  },
+
+  async startAgent(agentId: string): Promise<boolean> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    return await safeInvoke('start_agent', { agentId }) as boolean;
+  },
+
+  async stopAgent(agentId: string): Promise<boolean> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    return await safeInvoke('stop_agent', { agentId }) as boolean;
+  },
+
+  async deleteAgent(agentId: string): Promise<boolean> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    return await safeInvoke('delete_agent', { agentId }) as boolean;
+  },
+
+  async getAgentStatus(agentId: string): Promise<{
+    status: string;
+    is_running: boolean;
+    uptime?: number;
+    last_activity?: string;
+  }> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    return await safeInvoke('get_agent_status', { agentId }) as any;
+  },
+
+  async getAgentLogs(agentId: string): Promise<string[]> {
+    if (typeof window === 'undefined') return [];
+    return await safeInvoke('get_agent_logs', { agentId }) as string[];
+  },
+
+  async executeAgentAction(agentId: string, method: string, params?: any): Promise<any> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    return await safeInvoke('execute_agent_action', { agentId, method, params });
+  },
+
+  // Agent-Session Integration Commands
+  async createAgentSession(agentId: string, sessionName?: string): Promise<Session> {
+    if (typeof window === 'undefined') throw new Error('Sessions not available in SSR');
+    const name = sessionName || `Agent Chat - ${new Date().toLocaleString()}`;
+    return await safeInvoke('create_session', { 
+      name, 
+      role: `agent:${agentId}`,
+      goals: `Conversation with agent ${agentId}`,
+      llm_provider: 'agent',
+      model_id: agentId
+    }) as Session;
+  },
+
+  async sendMessageToAgent(agentId: string, sessionId: number, message: string): Promise<{
+    agentResponse: string;
+    messageId: number;
+  }> {
+    if (typeof window === 'undefined') throw new Error('Agents not available in SSR');
+    
+    // First save the user message
+    const userMessage = await this.saveMessage(sessionId, 'user', message);
+    
+    // Execute agent action to get response
+    const agentResponse = await this.executeAgentAction(agentId, 'process_message', {
+      message,
+      session_id: sessionId,
+      context: 'chat'
+    });
+    
+    // Save agent response
+    const responseText = typeof agentResponse === 'string' ? agentResponse : agentResponse.response || 'No response';
+    const assistantMessage = await this.saveMessage(sessionId, 'assistant', responseText);
+    
+    return {
+      agentResponse: responseText,
+      messageId: assistantMessage?.id || 0
+    };
+  },
+
+  // Agent Trigger Commands
+  async createTrigger(trigger: {
+    name: string;
+    description: string;
+    trigger_type: string;
+    agent_id: string;
+    config: Record<string, any>;
+    enabled: boolean;
+  }): Promise<string> {
+    if (typeof window === 'undefined') throw new Error('Triggers not available in SSR');
+    return await safeInvoke('create_trigger', { trigger }) as string;
+  },
+
+  async listTriggers(): Promise<Array<{
+    id: string;
+    name: string;
+    description: string;
+    trigger_type: string;
+    agent_id: string;
+    enabled: boolean;
+    created_at: string;
+  }>> {
+    if (typeof window === 'undefined') return [];
+    return await safeInvoke('list_triggers') as Array<any>;
+  },
+
+  async updateTrigger(triggerId: string, updates: {
+    name?: string;
+    description?: string;
+    config?: Record<string, any>;
+    enabled?: boolean;
+  }): Promise<boolean> {
+    if (typeof window === 'undefined') throw new Error('Triggers not available in SSR');
+    return await safeInvoke('update_trigger', { triggerId, updates }) as boolean;
+  },
+
+  async deleteTrigger(triggerId: string): Promise<boolean> {
+    if (typeof window === 'undefined') throw new Error('Triggers not available in SSR');
+    return await safeInvoke('delete_trigger', { triggerId }) as boolean;
+  },
+
+  async triggerAgent(agentId: string, triggerType: string, data: any): Promise<any> {
+    if (typeof window === 'undefined') throw new Error('Triggers not available in SSR');
+    return await safeInvoke('trigger_agent', { agentId, triggerType, data });
+  },
 };
 
 // Window management utilities

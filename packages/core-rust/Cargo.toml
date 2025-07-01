@@ -1,0 +1,69 @@
+[package]
+name = "personal-agent-space-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core Rust services for Personal Agent Space"
+authors = ["Personal Agent Space Team"]
+
+[dependencies]
+# Core async runtime
+tokio = { version = "1.40", features = ["full"] }
+tokio-util = "0.7"
+
+# Python integration
+pyo3 = { version = "0.20", features = ["auto-initialize", "extension-module"] }
+pyo3-asyncio = { version = "0.20", features = ["tokio-runtime"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+# Database & storage
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# Networking & HTTP
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+url = "2.5"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Async traits
+async-trait = "0.1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# File watching
+notify = "6.1"
+
+# Cron expressions
+cron = "0.12"
+
+# Configuration
+config = "0.14"
+dirs = "5.0"
+
+# Security
+ring = "0.17"
+base64 = "0.22"
+
+# Vector embeddings (for future use) - currently disabled due to compilation issues
+# candle-core = { version = "0.6", optional = true }
+# candle-nn = { version = "0.6", optional = true }
+
+[dev-dependencies]
+tempfile = "3.0"
+tokio-test = "0.4"
+
+[features]
+default = []
+embeddings = [] # ["candle-core", "candle-nn"] - disabled for now
+
+[lib]
+name = "personal_agent_space_core"
+crate-type = ["cdylib", "rlib"]

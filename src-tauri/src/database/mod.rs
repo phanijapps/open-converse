@@ -16,9 +16,6 @@ pub mod commands;
 use std::path::Path;
 use thiserror::Error;
 use models::{Session, Message, CreateSession, CreateMessage, DatabaseStats};
-use crate::connectors::openrouter::OpenRouterConnector;
-use crate::connectors::settings::SettingsManager;
-use crate::connectors::Connector;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {

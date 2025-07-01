@@ -89,8 +89,14 @@ export const useSessionMessages = (sessionId?: number): UseSessionMessagesReturn
 
   // Load messages when sessionId changes
   useEffect(() => {
-    if (sessionId && sessionId !== currentSessionId) {
+    if (sessionId !== undefined && sessionId !== currentSessionId) {
+      // Clear messages immediately when switching sessions
+      setMessages([]);
       loadMessages(sessionId);
+    } else if (sessionId === undefined) {
+      // Clear messages when no session is selected
+      setMessages([]);
+      setCurrentSessionId(undefined);
     }
   }, [sessionId, currentSessionId, loadMessages]);
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/router';
 import { Box, Flex } from '@chakra-ui/react';
 import { Sidebar, type Conversation } from '../components/navigation';
 import { ChatStream } from '../components/chat';
@@ -13,9 +14,10 @@ import { tauriCommands } from '@/utils/tauri';
 import type { ChatMessage, SettingsData } from '@shared/types';
 
 export default function Home() {
+  const router = useRouter();
   const { sessions, loading, createSession } = useSessions();
   const [activeId, setActiveId] = useState<string>(''); // Start with no active session
-  const { messages, loading: messagesLoading, addMessage, loadMessages } = useSessionMessages();
+  const { messages, loading: messagesLoading, addMessage, loadMessages } = useSessionMessages(activeId ? parseInt(activeId) : undefined);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Default expanded on desktop
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [isAgentConfigured, setIsAgentConfigured] = useState(false);
@@ -34,6 +36,16 @@ export default function Home() {
     loadAppSettings();
   }, []);
 
+  // Handle URL session parameter
+  useEffect(() => {
+    if (router.isReady && router.query.session) {
+      const sessionId = router.query.session as string;
+      setActiveId(sessionId);
+      // Clear the query parameter from URL without triggering a navigation
+      router.replace('/', undefined, { shallow: true });
+    }
+  }, [router.isReady, router.query.session, router]);
+
   // Transform sessions to conversations format
   const conversations = useMemo((): Conversation[] => {
     return sessions.map(session => ({
@@ -42,28 +54,19 @@ export default function Home() {
     }));
   }, [sessions]);
 
-  // Set the first session as active when sessions load
+  // Set the first session as active when sessions load (only if no session was specified in URL)
   useEffect(() => {
-    if (sessions.length > 0 && !activeId) {
+    if (sessions.length > 0 && !activeId && router.isReady && !router.query.session) {
       setActiveId(sessions[0].id.toString());
     }
-  }, [sessions, activeId]);
-
-  // Load messages when active session changes
-  useEffect(() => {
-    if (activeId) {
-      const sessionId = parseInt(activeId);
-      console.log('Loading messages for session:', sessionId, 'activeId:', activeId);
-      loadMessages(sessionId);
-    }
-  }, [activeId, loadMessages]);
+  }, [sessions, activeId, router.isReady, router.query.session]);
 
   const handleNewChat = async () => {
     const timestamp = new Date().toLocaleString();
     const newSession = await createSession(`New Chat - ${timestamp}`);
     if (newSession) {
       setActiveId(newSession.id.toString());
-      // Messages will be loaded automatically by the useEffect above
+      // Messages will be loaded automatically by the useSessionMessages hook
     }
   };
 
@@ -76,8 +79,7 @@ export default function Home() {
       if (newSession) {
         currentSessionId = newSession.id.toString();
         setActiveId(currentSessionId);
-        // Load messages for the new session
-        await loadMessages(newSession.id);
+        // Messages will be loaded automatically by the useSessionMessages hook
       } else {
         console.error('Failed to create session');
         return;
@@ -180,7 +182,7 @@ export default function Home() {
         activeId={activeId}
         onSelect={(id) => {
           setActiveId(id);
-          // Messages will be loaded automatically by the useEffect
+          // Messages will be loaded automatically by the useSessionMessages hook
         }}
         onNewChat={handleNewChat}
         isCollapsed={isSidebarCollapsed}

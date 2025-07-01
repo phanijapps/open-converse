@@ -14,8 +14,10 @@ use tokio::sync::Mutex;
 mod database;
 pub mod connectors;
 mod settings;
+mod agents;
 
 use database::commands::DatabaseState;
+use agents::AgentState;
 
 // Tauri commands for frontend communication
 #[tauri::command]
@@ -125,11 +127,37 @@ pub fn run() {
             // Settings commands
             settings::save_settings,
             settings::load_settings,
+            // Agent commands
+            agents::init_agent_system,
+            agents::get_agent_templates,
+            agents::create_agent_from_template,
+            agents::create_agent,
+            agents::list_agents,
+            agents::get_all_agents,
+            agents::get_agent_by_id,
+            agents::update_agent_config,
+            agents::delete_agent,
+            agents::start_agent,
+            agents::stop_agent,
+            agents::get_agent_status,
+            agents::execute_agent_action,
+            agents::trigger_agent_event,
+            agents::get_agent_logs,
+            // Trigger commands
+            agents::create_trigger,
+            agents::list_triggers,
+            agents::update_trigger,
+            agents::delete_trigger,
+            agents::trigger_agent,
         ])
         .setup(|app| {
             // Initialize database state
             let database_state: DatabaseState = Arc::new(Mutex::new(None));
             app.manage(database_state);
+
+            // Initialize agent state
+            let agent_state: AgentState = Arc::new(Mutex::new(std::collections::HashMap::new()));
+            app.manage(agent_state);
 
             // Create tray menu items
             let show = MenuItem::new(app, "Show", true, None::<&str>)?;

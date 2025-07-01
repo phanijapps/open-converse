@@ -5,7 +5,7 @@
 
 use crate::database::{models::*, DatabaseConfig, DatabaseManager, DatabaseProvider};
 use crate::connectors::Connector;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use tauri::State;
 use tokio::sync::Mutex;

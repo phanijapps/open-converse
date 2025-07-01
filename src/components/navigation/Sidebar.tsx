@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { 
   Box, 
   VStack, 
@@ -9,7 +10,7 @@ import {
   IconButton,
   Spinner,
 } from '@chakra-ui/react';
-import { Search, MessageCircle, Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Search, MessageCircle, Plus, ChevronLeft, ChevronRight, Trash2, Bot } from 'lucide-react';
 import SettingsDropdown from '../ui/SettingsDropdown';
 import useSessions from '@/hooks/useSessions';
 import type { Session } from '@shared/database-types';
@@ -272,6 +273,76 @@ const Sidebar: React.FC<SidebarProps> = ({
                 }}
               />
             </Box>
+          </Box>
+
+          {/* Navigation Links */}
+          <Box px={{ base: 3, sm: 4, md: 6 }} pb={4}>
+            <VStack gap={2} align="stretch">
+              <Link href="/" style={{ textDecoration: 'none', width: '100%' }}>
+                <Button
+                  w="100%"
+                  h="44px"
+                  bg="transparent"
+                  color="gray.700"
+                  borderRadius="22px"
+                  fontSize="15px"
+                  fontWeight="500"
+                  fontFamily="var(--font-primary)"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  justifyContent="flex-start"
+                  px={4}
+                  _hover={{
+                    bg: "gray.50",
+                    borderColor: "gray.300",
+                    transform: 'translateY(-1px)',
+                    textDecoration: "none",
+                  }}
+                  _active={{
+                    transform: 'translateY(0)',
+                  }}
+                  transition="all 0.2s ease"
+                  display="flex"
+                  alignItems="center"
+                  gap={3}
+                >
+                  <MessageCircle size={16} />
+                  Chat Home
+                </Button>
+              </Link>
+              <Link href="/agents" style={{ textDecoration: 'none', width: '100%' }}>
+                <Button
+                  w="100%"
+                  h="44px"
+                  bg="transparent"
+                  color="gray.700"
+                  borderRadius="22px"
+                  fontSize="15px"
+                  fontWeight="500"
+                  fontFamily="var(--font-primary)"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  justifyContent="flex-start"
+                  px={4}
+                  _hover={{
+                    bg: "gray.50",
+                    borderColor: "gray.300",
+                    transform: 'translateY(-1px)',
+                    textDecoration: "none",
+                  }}
+                  _active={{
+                    transform: 'translateY(0)',
+                  }}
+                  transition="all 0.2s ease"
+                  display="flex"
+                  alignItems="center"
+                  gap={3}
+                >
+                  <Bot size={16} />
+                  Agent Space
+                </Button>
+              </Link>
+            </VStack>
           </Box>
 
           {/* Conversations Header */}
